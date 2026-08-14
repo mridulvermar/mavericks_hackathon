@@ -1,6 +1,8 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Briefcase, ShoppingBag, Bot, Star, Bell, ChevronRight } from 'lucide-react'
+import { TrendingUp, Briefcase, ShoppingBag, Bot, Star, Bell, ChevronRight, Sparkles, MapPin, IndianRupee } from 'lucide-react'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const stats = [
   { label: 'Est. Earnings This Month', value: '₹3,200', note: 'Estimated', icon: '💰', color: 'bg-primary-50 text-primary' },
@@ -18,6 +20,27 @@ const quickActions = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [recommended, setRecommended] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/opportunities`)
+        const data = await res.json()
+        if (data.success && data.data) {
+          // Take top 3 highest matched opportunities
+          setRecommended(data.data.slice(0, 3))
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard recommendations:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRecommended()
+  }, [])
+
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
       {/* Greeting */}
@@ -67,12 +90,12 @@ export default function Dashboard() {
       </div>
 
       {/* AI Insight banner */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-400 rounded-2xl p-5 text-white flex items-start gap-4">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-400 rounded-2xl p-5 text-white flex items-start gap-4 shadow-card">
         <Bot size={32} className="shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold text-lg">AI Tip for You</p>
+          <p className="font-semibold text-lg">AI Livelihood Tip</p>
           <p className="text-sm opacity-90 mt-1">
-            Your cooking skills are in high demand! 3 new opportunities were posted near you this week.
+            Your cooking & teaching skills are in high demand! 3 new opportunities were posted near you this week.
           </p>
           <button
             onClick={() => navigate('/opportunities')}
@@ -82,6 +105,68 @@ export default function Dashboard() {
             View Opportunities <ChevronRight size={16} />
           </button>
         </div>
+      </div>
+
+      {/* Recommended For You Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="section-title mb-0 flex items-center gap-2">
+            <Sparkles size={20} className="text-primary" /> Recommended For You
+          </h2>
+          <button
+            onClick={() => navigate('/opportunities')}
+            className="text-primary font-bold text-sm hover:underline flex items-center gap-0.5"
+          >
+            See All <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2].map(i => <div key={i} className="card h-32 animate-pulse bg-gray-100/80" />)}
+          </div>
+        ) : recommended.length === 0 ? (
+          <div className="card p-6 text-center text-muted">
+            No recommended opportunities available right now.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recommended.map(opp => {
+              const oppId = opp._id || opp.id
+              return (
+                <button
+                  key={oppId}
+                  onClick={() => navigate(`/opportunities/${oppId}`)}
+                  className="card w-full text-left hover:shadow-float transition-all border-2 hover:border-primary-300 space-y-2 p-4"
+                  id={`rec-opp-${oppId}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="badge-gray text-xs mb-1 inline-block">{opp.category}</span>
+                      <h3 className="font-bold text-foreground text-base leading-snug">{opp.title}</h3>
+                    </div>
+                    <span className="badge-green text-xs font-bold shrink-0">
+                      ✨ {opp.matchPercent || 92}% Match
+                    </span>
+                  </div>
+
+                  {opp.matchReason && (
+                    <p className="text-xs text-primary-900 bg-primary-50 p-2 rounded-lg font-medium">
+                      💡 {opp.matchReason}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs text-muted pt-1">
+                    <span className="font-bold text-primary text-sm flex items-center gap-0.5">
+                      <IndianRupee size={14} /> {opp.pay}
+                    </span>
+                    <span className="flex items-center gap-1"><MapPin size={12} /> {opp.distanceText || opp.location}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent activity */}

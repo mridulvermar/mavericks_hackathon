@@ -14,6 +14,8 @@ import oppRouter     from './routes/opportunities.js'
 import bookingRouter from './routes/bookings.js'
 import chatRouter    from './routes/chat.js'
 import aiRouter      from './routes/ai.js'
+import productsRouter from './routes/products.js'
+import earningsRouter from './routes/earnings.js'
 import { setupSocketIO } from './socket/index.js'
 
 const app  = express()
@@ -21,14 +23,17 @@ const httpServer = createServer(app)
 const PORT = process.env.PORT || 5000
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
-// ── Security Middleware ──────────────────────────
+// ── CORS & Security Middleware ──────────────────
+app.use(cors({
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: true,
+}))
+app.options('*', cors())
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-}))
-
-app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'],
-  credentials: true,
 }))
 
 // Rate limiting — generous for hackathon demo
@@ -50,7 +55,9 @@ app.use('/api/health',        healthRouter)
 app.use('/api/auth',          authRouter)
 app.use('/api/users',         userRouter)
 app.use('/api/opportunities', oppRouter)
+app.use('/api/products',      productsRouter)
 app.use('/api/bookings',      bookingRouter)
+app.use('/api/earnings',      earningsRouter)
 app.use('/api/chat',          chatRouter)
 app.use('/api/ai',            aiRouter)
 

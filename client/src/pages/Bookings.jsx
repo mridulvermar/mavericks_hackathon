@@ -1,43 +1,113 @@
-import React, { useState } from 'react'
-import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, Plus } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, UserCheck, Shield, AlertCircle, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-const mockBookings = [
-  { id: '1', title: 'Home Cooking Class', client: 'Priya Mehta', date: 'Today, 4:00 PM', status: 'upcoming', pay: '₹500', icon: '🍳' },
-  { id: '2', title: 'Embroidery Session', client: 'Anita Singh', date: 'Tomorrow, 10:00 AM', status: 'upcoming', pay: '₹800', icon: '🧵' },
-  { id: '3', title: 'Hindi Tutoring', client: 'Rahul Kumar', date: 'Aug 10, 2026', status: 'completed', pay: '₹400', icon: '📚' },
-  { id: '4', title: 'Cooking Demo', client: 'Seema Gupta', date: 'Aug 8, 2026', status: 'cancelled', pay: '₹600', icon: '🍛' },
-]
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const statusConfig = {
-  upcoming:  { label: 'Upcoming',  color: 'badge-green', icon: Clock },
-  completed: { label: 'Completed', color: 'badge-gray',  icon: CheckCircle },
-  cancelled: { label: 'Cancelled', color: 'badge-red',   icon: XCircle },
+  pending:    { label: 'Pending Approval', color: 'bg-amber-100 text-amber-800 border-amber-300', icon: Clock },
+  confirmed:  { label: 'Confirmed',        color: 'bg-blue-100 text-blue-800 border-blue-300',   icon: CheckCircle },
+  in_progress:{ label: 'In Progress',      color: 'bg-purple-100 text-purple-800 border-purple-300', icon: Clock },
+  completed:  { label: 'Completed',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: CheckCircle },
+  cancelled:  { label: 'Cancelled',        color: 'bg-rose-100 text-rose-800 border-rose-300',   icon: XCircle },
 }
 
-const tabs = ['All', 'Upcoming', 'Completed', 'Cancelled']
+const tabs = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
 
 export default function Bookings() {
   const navigate = useNavigate()
+  const [role, setRole] = useState('provider') // 'provider' | 'customer'
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('All')
+  const [actionMessage, setActionMessage] = useState(null)
 
-  const filtered = mockBookings.filter(b =>
-    activeTab === 'All' || b.status === activeTab.toLowerCase()
-  )
+  const fetchBookings = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings`)
+      const data = await res.json()
+      if (data.success) {
+        setBookings(data.data || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch bookings:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchBookings()
+  }, [])
+
+  const handleStatusChange = async (id, action) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings/${id}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setActionMessage(data.message || `Booking updated!`)
+        fetchBookings()
+        setTimeout(() => setActionMessage(null), 3000)
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} booking:`, err)
+    }
+  }
+
+  const filtered = bookings.filter(b => {
+    if (activeTab === 'All') return true
+    return (b.status || 'pending').toLowerCase() === activeTab.toLowerCase()
+  })
 
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-        <Calendar size={28} className="text-primary" /> My Bookings
-      </h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Calendar size={28} className="text-primary" /> My Bookings
+        </h1>
+
+        {/* Provider vs Customer View Toggle */}
+        <div className="flex bg-gray-200 p-1 rounded-xl text-xs font-bold">
+          <button
+            onClick={() => setRole('provider')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              role === 'provider' ? 'bg-white text-primary shadow-xs' : 'text-gray-600'
+            }`}
+            id="role-provider"
+          >
+            Provider View
+          </button>
+          <button
+            onClick={() => setRole('customer')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              role === 'customer' ? 'bg-white text-primary shadow-xs' : 'text-gray-600'
+            }`}
+            id="role-customer"
+          >
+            Customer View
+          </button>
+        </div>
+      </div>
+
+      {/* Action toast */}
+      {actionMessage && (
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-xl font-bold text-sm shadow-md animate-fadeIn flex items-center gap-2">
+          <CheckCircle size={18} /> {actionMessage}
+        </div>
+      )}
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 rounded-xl border-2 font-medium whitespace-nowrap min-h-touch transition-all
+            className={`px-4 py-2 rounded-xl border-2 font-medium whitespace-nowrap min-h-touch transition-all text-sm
               ${activeTab === tab ? 'border-primary bg-primary text-white' : 'border-border text-foreground hover:border-primary-300'}`}
             id={`tab-${tab.toLowerCase()}`}
           >
@@ -46,58 +116,120 @@ export default function Bookings() {
         ))}
       </div>
 
-      {/* Bookings list */}
-      {filtered.length === 0 ? (
-        <div className="empty-state">
-          <span className="text-5xl">📅</span>
+      {/* Loading state */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2].map(i => <div key={i} className="card h-36 animate-pulse bg-gray-100/70" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        /* Empty State */
+        <div className="empty-state card py-14">
+          <span className="text-5xl mb-2">📅</span>
           <h3 className="font-bold text-xl text-foreground">No bookings yet</h3>
-          <p className="text-muted">Apply for opportunities to get your first booking</p>
-          <button onClick={() => navigate('/opportunities')} className="btn-primary" id="btn-find-work">
-            Find Work
+          <p className="text-muted max-w-sm">
+            {role === 'provider'
+              ? 'Explore new opportunities to get your first booking request.'
+              : 'Browse the marketplace or opportunities to book a service or order products.'}
+          </p>
+          <button
+            onClick={() => navigate('/opportunities')}
+            className="btn-primary mt-2 flex items-center gap-2"
+            id="btn-explore-opps"
+          >
+            Explore Opportunities <ArrowRight size={18} />
           </button>
         </div>
       ) : (
+        /* Bookings List */
         <div className="space-y-4">
           {filtered.map(b => {
-            const cfg = statusConfig[b.status]
+            const bId = b._id || b.id
+            const statusKey = (b.status || 'pending').toLowerCase()
+            const cfg = statusConfig[statusKey] || statusConfig.pending
             const StatusIcon = cfg.icon
+
             return (
-              <div key={b.id} className="card hover:shadow-float transition-all duration-150 cursor-pointer" id={`booking-${b.id}`}>
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 bg-primary-50 rounded-xl flex items-center justify-center text-3xl shrink-0">
-                    {b.icon}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-bold text-lg text-foreground">{b.title}</h3>
-                      <span className={cfg.color + ' text-sm flex items-center gap-1'}>
-                        <StatusIcon size={14} /> {cfg.label}
-                      </span>
+              <div
+                key={bId}
+                className="card space-y-3 border-2 border-border hover:border-primary-300 transition-all p-5"
+                id={`booking-${bId}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center text-3xl shrink-0">
+                      {b.icon || '💼'}
                     </div>
-                    <p className="text-muted text-sm mt-1">with {b.client}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-muted text-sm flex items-center gap-1"><Clock size={14} /> {b.date}</p>
-                      <p className="font-bold text-primary">{b.pay}</p>
+                    <div>
+                      <h3 className="font-bold text-lg text-foreground leading-snug">{b.title}</h3>
+                      <p className="text-sm text-muted">
+                        {role === 'provider' ? `Customer: ${b.customerName}` : `Provider: ${b.providerName}`}
+                      </p>
                     </div>
-                    {b.status === 'upcoming' && (
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => navigate(`/chat/booking-${b.id}`)}
-                          className="btn-secondary py-2 px-3 text-sm flex-1"
-                          id={`btn-chat-${b.id}`}
-                        >
-                          💬 Message
-                        </button>
-                        <button
-                          onClick={() => {}}
-                          className="btn-primary py-2 px-3 text-sm flex-1"
-                          id={`btn-complete-${b.id}`}
-                        >
-                          ✅ Mark Done
-                        </button>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Big Status Badge */}
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-bold text-xs shrink-0 ${cfg.color}`}>
+                    <StatusIcon size={14} /> {cfg.label}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t border-border/60">
+                  <p className="flex items-center gap-1.5 text-muted">
+                    <Clock size={16} className="text-gray-500" /> {b.date} ({b.time || '10:00 AM'})
+                  </p>
+                  <p className="font-extrabold text-primary text-base text-right">{b.pay}</p>
+                </div>
+
+                {/* Role-based Action Buttons */}
+                <div className="pt-2 border-t border-border flex gap-2 flex-wrap justify-end">
+                  {/* Provider Actions */}
+                  {role === 'provider' && statusKey === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleStatusChange(bId, 'reject')}
+                        className="btn-secondary text-red-600 border-red-200 py-2 px-4 text-xs font-bold flex-1"
+                        id={`btn-reject-${bId}`}
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(bId, 'accept')}
+                        className="btn-primary py-2 px-4 text-xs font-bold flex-1"
+                        id={`btn-accept-${bId}`}
+                      >
+                        Accept Request
+                      </button>
+                    </>
+                  )}
+
+                  {statusKey === 'confirmed' && (
+                    <button
+                      onClick={() => handleStatusChange(bId, 'complete')}
+                      className="btn-primary py-2.5 px-5 text-sm font-bold w-full bg-emerald-600 hover:bg-emerald-700"
+                      id={`btn-complete-${bId}`}
+                    >
+                      ✅ Mark Completed
+                    </button>
+                  )}
+
+                  {/* Customer Cancel */}
+                  {statusKey !== 'completed' && statusKey !== 'cancelled' && role === 'customer' && (
+                    <button
+                      onClick={() => handleStatusChange(bId, 'cancel')}
+                      className="btn-secondary text-red-600 border-red-200 py-2 px-4 text-xs font-bold"
+                      id={`btn-cancel-${bId}`}
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className="btn-ghost py-2 px-3 text-xs"
+                  >
+                    💬 Message
+                  </button>
                 </div>
               </div>
             )
