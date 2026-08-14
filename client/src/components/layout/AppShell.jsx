@@ -14,7 +14,9 @@ import {
   Menu,
   X,
   Bell,
+  LogOut,
 } from 'lucide-react'
+import authAPI from '../../api/auth'
 
 const navItems = [
   { to: '/home',          label: 'Home',          icon: Home },
@@ -56,10 +58,12 @@ function NavItem({ to, label, icon: Icon, onClick, collapsed }) {
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
   const navigate = useNavigate()
 
-  const allSidebarItems = [...navItems, ...sidebarExtra]
+  const handleLogout = async () => {
+    await authAPI.logout()
+    navigate('/', { replace: true })
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -95,9 +99,17 @@ export default function AppShell() {
           ))}
         </nav>
 
-        {/* User Footer */}
-        <div className="px-3 pb-4 border-t border-border pt-3">
+        {/* User Footer & Logout */}
+        <div className="px-3 pb-4 border-t border-border pt-3 space-y-1">
           <NavItem to="/settings" label="Settings" icon={User} />
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium text-base transition-all min-h-touch"
+            id="btn-logout-desktop"
+          >
+            <LogOut size={24} className="shrink-0" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
@@ -137,7 +149,7 @@ export default function AppShell() {
           </button>
         </div>
 
-        <nav className="px-3 py-4 space-y-1 overflow-y-auto h-full pb-24" aria-label="Mobile navigation">
+        <nav className="px-3 py-4 space-y-1 overflow-y-auto h-full pb-28" aria-label="Mobile navigation">
           <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Main</p>
           {navItems.map(item => (
             <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
@@ -149,6 +161,17 @@ export default function AppShell() {
           ))}
           <div className="border-t border-border my-3" />
           <NavItem to="/settings" label="Settings" icon={User} onClick={() => setSidebarOpen(false)} />
+          <button
+            onClick={() => {
+              setSidebarOpen(false)
+              handleLogout()
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium text-base transition-all min-h-touch mt-2"
+            id="btn-logout-mobile"
+          >
+            <LogOut size={24} className="shrink-0" />
+            <span>Sign Out</span>
+          </button>
         </nav>
       </div>
 

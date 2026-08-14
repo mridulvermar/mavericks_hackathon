@@ -1,18 +1,30 @@
 import { Router } from 'express'
+import User from '../models/User.js'
 import { authenticate } from '../middleware/auth.js'
+import { createError } from '../middleware/errorHandler.js'
 
 const router = Router()
 
-const mockUsers = [
-  { id: 'demo-user', name: 'Sunita Sharma', phone: '9876543210', role: 'worker', city: 'Jaipur', skills: ['Cooking', 'Embroidery'], rating: 4.8, verified: true },
-]
-
-router.get('/me', authenticate, (req, res) => {
-  res.json({ success: true, user: { ...req.user, ...mockUsers[0] } })
+// GET /api/users/me — Get user profile from MongoDB Atlas
+router.get('/me', authenticate, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id)
+    if (!user) return next(createError('User not found.', 404))
+    res.json({ success: true, user })
+  } catch (err) {
+    next(err)
+  }
 })
 
-router.patch('/me', authenticate, (req, res) => {
-  res.json({ success: true, message: 'Profile updated!', user: req.user })
+// PATCH /api/users/me — Update user profile in MongoDB Atlas
+router.patch('/me', authenticate, async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true, runValidators: true })
+    if (!user) return next(createError('User not found.', 404))
+    res.json({ success: true, message: 'Profile updated!', user })
+  } catch (err) {
+    next(err)
+  }
 })
 
 export default router

@@ -22,10 +22,8 @@ import Settings         from './pages/Settings'
 import HelpSafety       from './pages/HelpSafety'
 import NotFound         from './pages/NotFound'
 
-// ── Auth Guard (placeholder — always treats user as logged in for demo) ──
-const DEMO_MODE = true
+// ── Auth Guard ──
 const ProtectedRoute = ({ children }) => {
-  if (DEMO_MODE) return children
   const token = localStorage.getItem('sh_token')
   return token ? children : <Navigate to="/login" replace />
 }

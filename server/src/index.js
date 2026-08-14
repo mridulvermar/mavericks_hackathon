@@ -45,9 +45,6 @@ app.use('/api/', limiter)
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// ── Database ──────────────────────────────────────
-connectDB()
-
 // ── Routes ────────────────────────────────────────
 app.use('/api/health',        healthRouter)
 app.use('/api/auth',          authRouter)
@@ -66,7 +63,6 @@ app.use('*', (req, res) => {
 })
 
 // ── Centralized Error Handler ──────────────────────
-// MUST be last middleware — never leaks stack traces to client
 app.use(errorHandler)
 
 // ── Socket.IO ─────────────────────────────────────
@@ -78,12 +74,24 @@ const io = new SocketServer(httpServer, {
 })
 setupSocketIO(io)
 
-// ── Start Server ──────────────────────────────────
-httpServer.listen(PORT, () => {
-  console.log(`\n🤲 SilverHands Server running on port ${PORT}`)
-  console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`)
-  console.log(`   Client URL  : ${CLIENT_URL}`)
-  console.log(`   Health check: http://localhost:${PORT}/api/health\n`)
-})
+// ── Async Server Initialization ───────────────────
+async function startServer() {
+  try {
+    // Await database connection BEFORE opening HTTP port
+    await connectDB()
+
+    httpServer.listen(PORT, () => {
+      console.log(`🤲 SilverHands Server running on port ${PORT}`)
+      console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`)
+      console.log(`   Client URL  : ${CLIENT_URL}`)
+      console.log(`   Health check: http://localhost:${PORT}/api/health\n`)
+    })
+  } catch (err) {
+    console.error('❌ Failed to start server due to Database Connection failure.')
+    process.exit(1)
+  }
+}
+
+startServer()
 
 export default app

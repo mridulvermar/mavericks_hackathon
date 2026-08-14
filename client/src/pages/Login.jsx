@@ -1,30 +1,67 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Eye, EyeOff, LogIn } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
+import authAPI from '../api/auth'
 
 export default function Login() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({ phone: '', password: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Demo: skip auth and go to home
-    localStorage.setItem('sh_token', 'demo-token')
-    navigate('/home')
+    setError('')
+
+    if (!form.phone.trim()) return setError('Please enter your mobile number.')
+    if (!form.password) return setError('Please enter your password.')
+
+    setLoading(true)
+    try {
+      const res = await authAPI.login({
+        phone: form.phone.trim(),
+        password: form.password,
+      })
+
+      if (res.success) {
+        localStorage.setItem('sh_token', res.token)
+        localStorage.setItem('sh_user', JSON.stringify(res.user))
+
+        if (res.user && !res.user.onboardingComplete) {
+          navigate('/onboarding')
+        } else {
+          navigate('/home')
+        }
+      } else {
+        setError(res.message || 'Login failed. Please check your credentials.')
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Failed to connect to server.'
+      setError(errMsg)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo Header */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🤲</div>
           <h1 className="text-3xl font-extrabold text-foreground">Welcome Back</h1>
-          <p className="text-muted mt-1">Sign in to your SilverHands account</p>
+          <p className="text-muted mt-1 text-base">Sign in to your SilverHands account</p>
         </div>
 
-        <div className="card p-8">
+        <div className="card p-8 shadow-float">
+          {error && (
+            <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-start gap-3">
+              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="phone" className="block text-base font-semibold text-foreground mb-2">
@@ -38,6 +75,7 @@ export default function Login() {
                 value={form.phone}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                 autoComplete="tel"
+                required
               />
             </div>
 
@@ -54,6 +92,7 @@ export default function Login() {
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   autoComplete="current-password"
+                  required
                 />
                 <button
                   type="button"
@@ -66,18 +105,20 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary w-full text-lg py-4" id="btn-login">
-              <LogIn size={22} /> Sign In
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full text-lg py-4"
+              id="btn-login-submit"
+            >
+              {loading ? '⏳ Signing In...' : <><LogIn size={22} /> Sign In</>}
             </button>
           </form>
 
-          <div className="mt-5 text-center space-y-3">
+          <div className="mt-6 text-center space-y-3">
             <Link to="/register" className="block text-primary font-semibold hover:underline text-base">
               New to SilverHands? Register here →
             </Link>
-            <p className="text-muted text-sm">
-              Demo mode: tap Sign In to enter without credentials
-            </p>
           </div>
         </div>
       </div>

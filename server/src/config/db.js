@@ -4,23 +4,29 @@ export const connectDB = async () => {
   const uri = process.env.MONGODB_URI
 
   if (!uri) {
-    console.warn('\n⚠️  MONGODB_URI is not set in .env')
-    console.warn('   Server will run without database — API routes return mock data')
-    console.warn('   To enable database: add MONGODB_URI to server/.env\n')
-    return
+    console.error('\n❌ FATAL: MONGODB_URI is not set in server/.env')
+    process.exit(1)
   }
 
+  // Safe diagnostic log (never exposes password)
+  const maskedURI = uri.replace(/:([^@]+)@/, ':****@')
+  console.log(`🔌 Attempting MongoDB Atlas Connection: ${maskedURI}`)
+
   try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
+    const conn = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 15000, // 15s timeout for Atlas TLS handshake
+      socketTimeoutMS: 45000,
     })
-    console.log('✅ MongoDB connected:', mongoose.connection.host)
+    console.log(`\n🎉 ✅ MongoDB Atlas Connected Successfully!`)
+    console.log(`   Cluster Host : ${conn.connection.host}`)
+    console.log(`   Database Name: ${conn.connection.name}\n`)
+    return conn
   } catch (err) {
-    console.error('❌ MongoDB connection failed:', err.message)
-    console.warn('   Continuing in mock-data mode — database features unavailable\n')
-    // Do NOT exit — allow frontend demo to continue
+    console.error('\n❌ FATAL: MongoDB Atlas Connection Failed!')
+    console.error(`   Error Name   : ${err.name}`)
+    console.error(`   Error Message: ${err.message}\n`)
+    throw err
   }
 }
 
-export const isDBConnected = () =>
-  mongoose.connection.readyState === 1
+export const isDBConnected = () => mongoose.connection.readyState === 1

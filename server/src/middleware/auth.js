@@ -12,7 +12,22 @@ export const authenticate = (req, res, next) => {
     req.user = decoded
     next()
   } catch (err) {
-    next(err)
+    if (err.name === 'TokenExpiredError') {
+      return next(createError('Session expired. Please sign in again.', 401))
+    }
+    return next(createError('Invalid authentication token.', 401))
+  }
+}
+
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(createError('Authentication required.', 401))
+    }
+    if (!roles.includes(req.user.role)) {
+      return next(createError(`Access denied for role: ${req.user.role}`, 403))
+    }
+    next()
   }
 }
 
@@ -24,7 +39,7 @@ export const optionalAuth = (req, res, next) => {
       req.user = jwt.verify(token, process.env.JWT_SECRET || 'silverhands_dev_secret')
     }
   } catch {
-    // Ignore auth errors on optional routes
+    // Ignore invalid tokens on optional routes
   }
   next()
 }
