@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, UserCheck, Shield, AlertCircle, ArrowRight } from 'lucide-react'
+import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, AlertCircle, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
@@ -19,19 +19,25 @@ export default function Bookings() {
   const [role, setRole] = useState('provider') // 'provider' | 'customer'
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('All')
   const [actionMessage, setActionMessage] = useState(null)
+  const [confirmCancel, setConfirmCancel] = useState(null) // booking id to confirm cancel
 
   const fetchBookings = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`${API_BASE_URL}/bookings`)
       const data = await res.json()
       if (data.success) {
         setBookings(data.data || [])
+      } else {
+        setError('Could not load bookings. Please try again.')
       }
     } catch (err) {
       console.error('Failed to fetch bookings:', err)
+      setError('Could not connect to server. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -49,13 +55,23 @@ export default function Bookings() {
       })
       const data = await res.json()
       if (data.success) {
-        setActionMessage(data.message || `Booking updated!`)
+        setActionMessage(data.message || `Booking updated successfully!`)
         fetchBookings()
-        setTimeout(() => setActionMessage(null), 3000)
+        setTimeout(() => setActionMessage(null), 3500)
+      } else {
+        setActionMessage(`Action failed: ${data.message || 'Please try again.'}`)
+        setTimeout(() => setActionMessage(null), 4000)
       }
     } catch (err) {
       console.error(`Failed to ${action} booking:`, err)
+      setActionMessage('Network error. Please try again.')
+      setTimeout(() => setActionMessage(null), 4000)
     }
+  }
+
+  const handleCancelConfirmed = (id) => {
+    setConfirmCancel(null)
+    handleStatusChange(id, 'cancel')
   }
 
   const filtered = bookings.filter(b => {
@@ -65,6 +81,38 @@ export default function Bookings() {
 
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-5">
+
+      {/* Cancel Confirmation Dialog */}
+      {confirmCancel && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3 text-red-600">
+              <AlertTriangle size={28} />
+              <h3 className="font-extrabold text-xl">Cancel Booking?</h3>
+            </div>
+            <p className="text-base text-foreground leading-relaxed">
+              Are you sure you want to cancel this booking? This action cannot be undone and the provider will be notified.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setConfirmCancel(null)}
+                className="btn-secondary flex-1 py-3 font-bold"
+                id="btn-cancel-keep"
+              >
+                Keep Booking
+              </button>
+              <button
+                onClick={() => handleCancelConfirmed(confirmCancel)}
+                className="btn-primary flex-1 py-3 font-bold bg-red-600 hover:bg-red-700 border-red-600"
+                id="btn-cancel-confirm"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -120,6 +168,20 @@ export default function Bookings() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2].map(i => <div key={i} className="card h-36 animate-pulse bg-gray-100/70" />)}
+        </div>
+      ) : error ? (
+        /* Error State */
+        <div className="card py-12 text-center space-y-4">
+          <AlertCircle size={40} className="text-red-400 mx-auto" />
+          <p className="font-bold text-lg text-foreground">Could not load bookings</p>
+          <p className="text-muted text-sm">{error}</p>
+          <button
+            onClick={fetchBookings}
+            className="btn-primary flex items-center gap-2 mx-auto px-6"
+            id="btn-retry-bookings"
+          >
+            <RefreshCw size={18} /> Try Again
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         /* Empty State */
@@ -213,12 +275,13 @@ export default function Bookings() {
                     </button>
                   )}
 
-                  {/* Customer Cancel */}
+                  {/* Customer Cancel — opens confirmation dialog */}
                   {statusKey !== 'completed' && statusKey !== 'cancelled' && role === 'customer' && (
                     <button
-                      onClick={() => handleStatusChange(bId, 'cancel')}
+                      onClick={() => setConfirmCancel(bId)}
                       className="btn-secondary text-red-600 border-red-200 py-2 px-4 text-xs font-bold"
                       id={`btn-cancel-${bId}`}
+                      aria-label={`Cancel booking: ${b.title}`}
                     >
                       Cancel Booking
                     </button>

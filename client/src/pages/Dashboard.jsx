@@ -22,18 +22,20 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [recommended, setRecommended] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
 
   useEffect(() => {
     const fetchRecommended = async () => {
+      setFetchError(false)
       try {
         const res = await fetch(`${API_BASE_URL}/opportunities`)
         const data = await res.json()
         if (data.success && data.data) {
-          // Take top 3 highest matched opportunities
           setRecommended(data.data.slice(0, 3))
         }
       } catch (err) {
         console.error('Error fetching dashboard recommendations:', err)
+        setFetchError(true)
       } finally {
         setLoading(false)
       }
@@ -125,9 +127,31 @@ export default function Dashboard() {
           <div className="space-y-3">
             {[1, 2].map(i => <div key={i} className="card h-32 animate-pulse bg-gray-100/80" />)}
           </div>
+        ) : fetchError ? (
+          <div className="card p-6 text-center space-y-3">
+            <span className="text-4xl">⚠️</span>
+            <p className="font-bold text-foreground">Could not load recommendations</p>
+            <p className="text-muted text-sm">Check your connection and try again.</p>
+            <button
+              onClick={() => { setLoading(true); setFetchError(false) }}
+              className="btn-primary px-6 py-2 text-sm font-bold flex items-center gap-2 mx-auto"
+              id="btn-retry-recommendations"
+            >
+              🔄 Try Again
+            </button>
+          </div>
         ) : recommended.length === 0 ? (
-          <div className="card p-6 text-center text-muted">
-            No recommended opportunities available right now.
+          <div className="card p-6 text-center space-y-3">
+            <span className="text-4xl">🔍</span>
+            <p className="font-bold text-foreground">No recommendations yet</p>
+            <p className="text-muted text-sm">Opportunities matching your skills will appear here once your profile is complete.</p>
+            <button
+              onClick={() => navigate('/opportunities')}
+              className="btn-primary px-6 py-2 text-sm font-bold flex items-center gap-2 mx-auto"
+              id="btn-browse-opps"
+            >
+              Browse All Opportunities
+            </button>
           </div>
         ) : (
           <div className="space-y-3">

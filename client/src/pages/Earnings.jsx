@@ -8,8 +8,11 @@ export default function Earnings() {
   const [period, setPeriod] = useState('6M')
   const [earnings, setEarnings] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
+  const [toastMsg, setToastMsg] = useState(null)
 
   const fetchEarnings = async () => {
+    setFetchError(false)
     try {
       const res = await fetch(`${API_BASE_URL}/earnings`)
       const data = await res.json()
@@ -18,6 +21,7 @@ export default function Earnings() {
       }
     } catch (err) {
       console.error('Failed to fetch earnings:', err)
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -47,10 +51,21 @@ export default function Earnings() {
     ],
   }
 
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 3500)
+  }
+
   const current = earnings || defaultData
 
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
+      {/* Toast */}
+      {toastMsg && (
+        <div className="bg-emerald-600 text-white px-4 py-3 rounded-xl font-bold text-sm shadow-md animate-fadeIn flex items-center gap-2" role="status" aria-live="polite">
+          ✅ {toastMsg}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -128,6 +143,8 @@ export default function Earnings() {
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all min-h-[32px]
                   ${period === p ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:text-foreground'}`}
                 id={`period-${p}`}
+                aria-label={`Show ${p === '3M' ? '3 months' : p === '6M' ? '6 months' : '1 year'} earnings`}
+                aria-pressed={period === p}
               >
                 {p}
               </button>
@@ -171,9 +188,10 @@ export default function Earnings() {
 
       {/* Withdraw */}
       <button
-        onClick={() => alert('Bank withdrawal initiated! ₹2,000 will be transferred within 24 hours.')}
+        onClick={() => showToast('Withdrawal of ₹2,000 initiated! Funds will reach your bank within 2-3 business days.')}
         className="btn-primary w-full text-lg py-4 font-bold flex items-center justify-center gap-2 shadow-float"
         id="btn-withdraw"
+        aria-label="Withdraw earnings to bank account"
       >
         <IndianRupee size={22} /> Withdraw to Bank Account
       </button>

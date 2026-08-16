@@ -67,14 +67,21 @@ export default function AppShell() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      {/* Skip-to-content link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-xl focus:font-bold focus:text-sm"
+      >
+        Skip to main content
+      </a>
+
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-border fixed top-0 left-0 z-30 shadow-card">
-        {/* Logo */}
-        <div
-          className="flex items-center gap-3 px-5 py-5 border-b border-border cursor-pointer"
+        {/* Logo — semantic button */}
+        <button
+          className="flex items-center gap-3 px-5 py-5 border-b border-border cursor-pointer hover:bg-primary-50 transition-colors text-left w-full"
           onClick={() => navigate('/home')}
-          role="button"
-          aria-label="Go to Home"
+          aria-label="SilverHands — Go to Home"
         >
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl select-none">
             🤲
@@ -83,7 +90,7 @@ export default function AppShell() {
             <p className="font-bold text-lg text-foreground leading-none">SilverHands</p>
             <p className="text-xs text-muted">Earn with your Wisdom</p>
           </div>
-        </div>
+        </button>
 
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main navigation">

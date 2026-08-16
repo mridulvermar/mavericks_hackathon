@@ -13,7 +13,9 @@ export default function Chat() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
   const [translations, setTranslations] = useState({}) // msgId -> translatedText
+  const [translationErrors, setTranslationErrors] = useState({}) // msgId -> error
   const [translatingId, setTranslatingId] = useState(null)
 
   const socketRef = useRef(null)
@@ -49,6 +51,7 @@ export default function Chat() {
   useEffect(() => {
     const fetchConversations = async () => {
       setLoading(true)
+      setFetchError(false)
       try {
         const res = await fetch(`${API_BASE_URL}/chat/conversations`)
         const data = await res.json()
@@ -57,6 +60,7 @@ export default function Chat() {
         }
       } catch (err) {
         console.error('Error fetching conversations:', err)
+        setFetchError(true)
       } finally {
         setLoading(false)
       }
@@ -147,28 +151,27 @@ export default function Chat() {
         delete copy[msgId]
         return copy
       })
+      setTranslationErrors((prev) => { const c = {...prev}; delete c[msgId]; return c })
       return
     }
 
     setTranslatingId(msgId)
+    setTranslationErrors((prev) => { const c = {...prev}; delete c[msgId]; return c })
     try {
       const res = await fetch(`${API_BASE_URL}/ai/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          targetLang: 'ta',
-        }),
+        body: JSON.stringify({ text, targetLang: 'ta' }),
       })
       const data = await res.json()
       if (data.success && data.translatedText) {
-        setTranslations((prev) => ({
-          ...prev,
-          [msgId]: data.translatedText,
-        }))
+        setTranslations((prev) => ({ ...prev, [msgId]: data.translatedText }))
+      } else {
+        setTranslationErrors((prev) => ({ ...prev, [msgId]: 'Translation failed. Try again.' }))
       }
     } catch (err) {
       console.error('Translation error:', err)
+      setTranslationErrors((prev) => ({ ...prev, [msgId]: 'Could not reach server. Try again.' }))
     } finally {
       setTranslatingId(null)
     }
