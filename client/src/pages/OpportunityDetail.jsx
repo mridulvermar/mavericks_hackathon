@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { MapPin, Clock, IndianRupee, ArrowLeft, Share2, Bookmark, CheckCircle, Sparkles, UserCheck, Calendar, X } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_BASE_URL } from '../api/axios'
 
 export default function OpportunityDetail() {
   const { id } = useParams()
@@ -42,16 +42,22 @@ export default function OpportunityDetail() {
   const handleConfirmBooking = async (e) => {
     e.preventDefault()
     setSubmitting(true)
+    const token = localStorage.getItem('sh_token')
+    const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
+
     try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+
       const res = await fetch(`${API_BASE_URL}/bookings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           title: opp.title,
           itemType: 'opportunity',
           itemId: id,
           providerName: opp.clientName || 'Lakshmi Ammal',
-          customerName: 'Sunita Ji (Customer)',
+          customerName: user.name || 'Sunita Ji (Applicant)',
           date: bookingDate,
           time: bookingTime,
           pay: opp.pay,
@@ -61,12 +67,12 @@ export default function OpportunityDetail() {
       })
       const data = await res.json()
       if (data.success) {
-        setBookingSuccess(`Booking request sent to ${opp.clientName || 'Employer'} for ${bookingDate} at ${bookingTime}! Status is currently Pending confirmation.`)
+        setBookingSuccess(data.message || `Your application was sent to ${opp.clientName || 'the employer'}. You'll be notified when they respond.`)
       } else {
-        setBookingSuccess(`Booking request sent! Provider will review shortly.`)
+        setBookingSuccess(`Your application was sent to ${opp.clientName || 'the employer'}. You'll be notified when they respond.`)
       }
     } catch (err) {
-      setBookingSuccess(`Booking request sent for ${bookingDate} at ${bookingTime}! Provider will contact you soon.`)
+      setBookingSuccess(`Your application was sent to ${opp.clientName || 'the employer'}. You'll be notified when they respond.`)
     } finally {
       setSubmitting(false)
     }
@@ -190,7 +196,7 @@ export default function OpportunityDetail() {
           className="btn-primary w-full text-lg py-4 shadow-float font-bold flex items-center justify-center gap-2"
           id="btn-apply"
         >
-          <Calendar size={22} /> Book & Apply for Work
+          <Calendar size={22} /> Apply for Opportunity
         </button>
       </div>
 

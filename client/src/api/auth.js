@@ -1,25 +1,4 @@
-import axios from 'axios'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-
-export const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-// Request interceptor: attach token if stored
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('sh_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+import { api } from './axios'
 
 export const authAPI = {
   register: async (data) => {
@@ -54,4 +33,5 @@ export const authAPI = {
   },
 }
 
+export { api }
 export default authAPI

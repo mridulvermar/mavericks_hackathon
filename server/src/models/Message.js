@@ -23,6 +23,11 @@ const messageSchema = new mongoose.Schema({
     enum: ['me', 'other'],
     default: 'other',
   },
+  status: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent',
+  },
   timestamp: {
     type: String,
     default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

@@ -26,11 +26,8 @@ export default function Register() {
     try {
       let role = 'provider'
       let providerType = 'senior_citizen'
-      if (form.persona === 'homemaker') {
-        role = 'provider'
-        providerType = 'homemaker'
-      } else if (form.persona === 'customer') {
-        role = 'customer'
+      if (form.persona === 'job_provider') {
+        role = 'job_provider'
         providerType = 'none'
       }
 
@@ -126,9 +123,8 @@ export default function Register() {
               </label>
               <div className="space-y-2">
                 {[
-                  { id: 'senior_citizen', title: '👴 Senior Citizen', desc: 'Share wisdom & earn' },
-                  { id: 'homemaker', title: '👩 Homemaker', desc: 'Monetize domestic skills' },
-                  { id: 'customer', title: '🔍 Customer / Client', desc: 'Hire skilled help & services' },
+                  { id: 'provider', title: '👵 Service Provider', desc: 'Senior Citizen or Homemaker sharing skills & earning' },
+                  { id: 'job_provider', title: '💼 Job Provider', desc: 'Hire skilled seniors & post job requirements' },
                 ].map((item) => (
                   <button
                     key={item.id}

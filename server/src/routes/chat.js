@@ -81,7 +81,7 @@ router.get('/conversations/:id/messages', optionalAuth, async (req, res) => {
     }
 
     if (!messages || messages.length === 0) {
-      messages = mockMessagesStore[id] || mockMessagesStore['c1']
+      messages = mockMessagesStore[id] || []
     }
 
     res.json({ success: true, data: messages })

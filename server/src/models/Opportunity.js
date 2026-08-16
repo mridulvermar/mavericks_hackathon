@@ -43,6 +43,11 @@ const opportunitySchema = new mongoose.Schema({
     enum: ['Part-time', 'Full-time', 'Flexible', 'Freelance', 'One-time'],
     default: 'Part-time',
   },
+  kind: {
+    type: String,
+    enum: ['job', 'product_request'],
+    default: 'job',
+  },
   clientName: {
     type: String,
     default: 'Local Employer',
@@ -57,7 +62,7 @@ const opportunitySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'closed'],
+    enum: ['open', 'in_progress', 'fulfilled', 'closed'],
     default: 'open',
   },
   posted: {
@@ -67,6 +72,9 @@ const opportunitySchema = new mongoose.Schema({
   postedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+  },
+  postedById: {
+    type: String,
   },
 }, { timestamps: true })
 

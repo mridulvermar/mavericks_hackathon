@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Send, ArrowLeft, Phone, Languages, Sparkles, CheckCheck } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Send, ArrowLeft, Phone, Languages, Sparkles, CheckCheck, Check } from 'lucide-react'
 import { io } from 'socket.io-client'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+import { API_BASE_URL, SOCKET_URL } from '../api/axios'
 
 export default function Chat() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [conversations, setConversations] = useState([])
   const [activeChat, setActiveChat] = useState(null)
   const [messages, setMessages] = useState([])
@@ -23,20 +23,25 @@ export default function Chat() {
 
   // Initialize Socket.IO
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
+    const userId = user._id || user.id || 'u_user'
+
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
     })
 
     socketRef.current.on('connect', () => {
       console.log('⚡ Socket connected to server')
-      socketRef.current.emit('user:join', 'user_sunita')
+      socketRef.current.emit('user:join', userId)
     })
 
     socketRef.current.on('chat:message', (newMsg) => {
       setMessages((prevMsgs) => {
-        // Prevent duplicate messages if already appended
-        if (prevMsgs.some((m) => (m._id || m.id) === (newMsg._id || newMsg.id))) {
-          return prevMsgs
+        const existingIdx = prevMsgs.findIndex((m) => (m._id || m.id) === (newMsg._id || newMsg.id))
+        if (existingIdx !== -1) {
+          const updated = [...prevMsgs]
+          updated[existingIdx] = { ...updated[existingIdx], status: newMsg.status }
+          return updated
         }
         return [...prevMsgs, newMsg]
       })
@@ -47,6 +52,26 @@ export default function Chat() {
     }
   }, [])
 
+  // Handle direct navigation via location.state (e.g. from Message button on applications/bookings)
+  useEffect(() => {
+    if (location.state?.conversationId) {
+      const convId = location.state.conversationId
+      const targetConv = {
+        _id: convId,
+        id: convId,
+        name: location.state.name || 'Connected User',
+        role: location.state.role || 'Direct Message',
+        avatar: location.state.avatar || '💬',
+        online: true,
+      }
+      setActiveChat(targetConv)
+      setConversations(prev => {
+        if (prev.some(c => (c._id || c.id) === convId)) return prev
+        return [targetConv, ...prev]
+      })
+    }
+  }, [location.state])
+
   // Fetch Conversations
   useEffect(() => {
     const fetchConversations = async () => {
@@ -56,7 +81,11 @@ export default function Chat() {
         const res = await fetch(`${API_BASE_URL}/chat/conversations`)
         const data = await res.json()
         if (data.success && data.data) {
-          setConversations(data.data)
+          setConversations(prev => {
+            const existingIds = new Set(data.data.map(c => c._id || c.id))
+            const customConvs = prev.filter(c => !existingIds.has(c._id || c.id))
+            return [...customConvs, ...data.data]
+          })
         }
       } catch (err) {
         console.error('Error fetching conversations:', err)
@@ -103,13 +132,19 @@ export default function Chat() {
     const textToSend = input.trim()
     setInput('')
 
+    const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+    const currentName = currentUser.name || 'Sunita Ji'
+    const currentId = currentUser._id || currentUser.id || 'me'
+
     const tempMsg = {
       _id: String(Date.now()),
       id: String(Date.now()),
       conversationId: chatId,
       text: textToSend,
+      senderId: currentId,
       sender: 'me',
-      senderName: 'Sunita Ji',
+      senderName: currentName,
+      status: 'sent',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
@@ -121,8 +156,8 @@ export default function Chat() {
         roomId: chatId,
         conversationId: chatId,
         text: textToSend,
-        senderId: 'me',
-        senderName: 'Sunita Ji',
+        senderId: currentId,
+        senderName: currentName,
       })
     }
 
@@ -293,7 +328,9 @@ export default function Chat() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-background">
         {messages.map((msg) => {
           const msgId = msg._id || msg.id
-          const isMe = msg.sender === 'me'
+          const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+          const currentUserId = currentUser._id || currentUser.id || 'me'
+          const isMe = msg.senderId === currentUserId || msg.sender === 'me'
           const hasTranslation = translations[msgId]
           const isTranslating = translatingId === msgId
 
@@ -323,15 +360,23 @@ export default function Chat() {
                   </div>
                 )}
 
-                {/* Timestamp & Opt-In Translate Button */}
+                {/* Timestamp & Ticks & Opt-In Translate Button */}
                 <div
                   className={`flex items-center justify-between gap-3 text-xs pt-1 ${
                     isMe ? 'text-white/80' : 'text-muted'
                   }`}
                 >
                   <span className="flex items-center gap-1">
-                    {msg.time || 'Now'}
-                    {isMe && <CheckCheck size={14} />}
+                    {msg.time || msg.timestamp || 'Now'}
+                    {isMe && (
+                      msg.status === 'read' ? (
+                        <CheckCheck size={14} className="text-sky-300" />
+                      ) : msg.status === 'delivered' ? (
+                        <CheckCheck size={14} className="text-white/70" />
+                      ) : (
+                        <Check size={14} className="text-white/50" />
+                      )
+                    )}
                   </span>
 
                   <button

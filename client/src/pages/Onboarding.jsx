@@ -169,29 +169,21 @@ export default function Onboarding() {
             <div className="space-y-4 py-2">
               {[
                 {
-                  id: 'senior_citizen',
+                  id: 'provider',
                   role: 'provider',
                   providerType: 'senior_citizen',
-                  title: '👴 Senior Citizen',
-                  desc: 'Share your life wisdom, teach, mentor, or provide specialized home services.',
+                  title: '👵 Service Provider',
+                  desc: 'Senior Citizen or Homemaker sharing skills, teaching, or providing services.',
                 },
                 {
-                  id: 'homemaker',
-                  role: 'provider',
-                  providerType: 'homemaker',
-                  title: '👩 Homemaker',
-                  desc: 'Monetize domestic skills like home cooking, tailoring, and handmade crafts.',
-                },
-                {
-                  id: 'customer',
-                  role: 'customer',
+                  id: 'job_provider',
+                  role: 'job_provider',
                   providerType: 'none',
-                  title: '🔍 Customer / Employer',
+                  title: '💼 Job Provider',
                   desc: 'Find and hire trusted elders & homemakers for home services, classes, and products.',
                 },
               ].map((option) => {
-                const selected =
-                  formData.role === option.role && formData.providerType === option.providerType
+                const selected = formData.role === option.role
                 return (
                   <button
                     key={option.id}

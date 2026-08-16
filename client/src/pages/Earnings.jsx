@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { TrendingUp, Download, IndianRupee, ArrowUpRight, CheckCircle2, Clock, Briefcase } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_BASE_URL } from '../api/axios'
 
 export default function Earnings() {
   const [period, setPeriod] = useState('6M')
@@ -14,10 +14,16 @@ export default function Earnings() {
   const fetchEarnings = async () => {
     setFetchError(false)
     try {
-      const res = await fetch(`${API_BASE_URL}/earnings`)
+      const token = localStorage.getItem('sh_token')
+      const headers = {}
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      const res = await fetch(`${API_BASE_URL}/earnings`, { headers })
       const data = await res.json()
       if (data.success) {
         setEarnings(data.data)
+      } else {
+        setFetchError(true)
       }
     } catch (err) {
       console.error('Failed to fetch earnings:', err)

@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, AlertCircle, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Calendar, CheckCircle, Clock, XCircle, ChevronRight, AlertCircle, ArrowRight, AlertTriangle, RefreshCw, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_BASE_URL } from '../api/axios'
 
 const statusConfig = {
-  pending:    { label: 'Pending Approval', color: 'bg-amber-100 text-amber-800 border-amber-300', icon: Clock },
-  confirmed:  { label: 'Confirmed',        color: 'bg-blue-100 text-blue-800 border-blue-300',   icon: CheckCircle },
+  pending:    { label: 'Pending Review',  color: 'bg-amber-100 text-amber-800 border-amber-300', icon: Clock },
+  confirmed:  { label: 'Approved',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: CheckCircle },
   in_progress:{ label: 'In Progress',      color: 'bg-purple-100 text-purple-800 border-purple-300', icon: Clock },
-  completed:  { label: 'Completed',        color: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: CheckCircle },
-  cancelled:  { label: 'Cancelled',        color: 'bg-rose-100 text-rose-800 border-rose-300',   icon: XCircle },
+  completed:  { label: 'Completed',        color: 'bg-blue-100 text-blue-800 border-blue-300',   icon: CheckCircle },
+  cancelled:  { label: 'Declined',         color: 'bg-rose-100 text-rose-800 border-rose-300',   icon: XCircle },
 }
 
 const tabs = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
 
 export default function Bookings() {
   const navigate = useNavigate()
-  const [role, setRole] = useState('provider') // 'provider' | 'customer'
+  const storedUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const initialRole = storedUser.role === 'job_provider' ? 'job_provider' : 'provider'
+  const [role, setRole] = useState(initialRole) // 'provider' | 'job_provider'
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -49,9 +51,13 @@ export default function Bookings() {
 
   const handleStatusChange = async (id, action) => {
     try {
+      const token = localStorage.getItem('sh_token')
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+
       const res = await fetch(`${API_BASE_URL}/bookings/${id}/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       })
       const data = await res.json()
       if (data.success) {
@@ -59,7 +65,7 @@ export default function Bookings() {
         fetchBookings()
         setTimeout(() => setActionMessage(null), 3500)
       } else {
-        setActionMessage(`Action failed: ${data.message || 'Please try again.'}`)
+        setActionMessage(data.message || 'Action failed. Please try again.')
         setTimeout(() => setActionMessage(null), 4000)
       }
     } catch (err) {
@@ -116,10 +122,10 @@ export default function Bookings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Calendar size={28} className="text-primary" /> My Bookings
+          <Calendar size={28} className="text-primary" /> My Applications & Bookings
         </h1>
 
-        {/* Provider vs Customer View Toggle */}
+        {/* View Toggle */}
         <div className="flex bg-gray-200 p-1 rounded-xl text-xs font-bold">
           <button
             onClick={() => setRole('provider')}
@@ -131,13 +137,13 @@ export default function Bookings() {
             Provider View
           </button>
           <button
-            onClick={() => setRole('customer')}
+            onClick={() => setRole('job_provider')}
             className={`px-3 py-1.5 rounded-lg transition-all ${
-              role === 'customer' ? 'bg-white text-primary shadow-xs' : 'text-gray-600'
+              role === 'job_provider' ? 'bg-white text-primary shadow-xs' : 'text-gray-600'
             }`}
-            id="role-customer"
+            id="role-job-provider"
           >
-            Customer View
+            Job Provider View
           </button>
         </div>
       </div>
@@ -187,11 +193,11 @@ export default function Bookings() {
         /* Empty State */
         <div className="empty-state card py-14">
           <span className="text-5xl mb-2">📅</span>
-          <h3 className="font-bold text-xl text-foreground">No bookings yet</h3>
+          <h3 className="font-bold text-xl text-foreground">No applications or bookings yet</h3>
           <p className="text-muted max-w-sm">
             {role === 'provider'
-              ? 'Explore new opportunities to get your first booking request.'
-              : 'Browse the marketplace or opportunities to book a service or order products.'}
+              ? 'Explore new opportunities to apply for your first booking.'
+              : 'Browse the marketplace or opportunities to post job requirements.'}
           </p>
           <button
             onClick={() => navigate('/opportunities')}
@@ -224,12 +230,12 @@ export default function Bookings() {
                     <div>
                       <h3 className="font-bold text-lg text-foreground leading-snug">{b.title}</h3>
                       <p className="text-sm text-muted">
-                        {role === 'provider' ? `Customer: ${b.customerName}` : `Provider: ${b.providerName}`}
+                        {role === 'provider' ? `Job Provider: ${b.customerName || 'Local Client'}` : `Applicant: ${b.providerName}`}
                       </p>
                     </div>
                   </div>
 
-                  {/* Big Status Badge */}
+                  {/* Status Badge */}
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-bold text-xs shrink-0 ${cfg.color}`}>
                     <StatusIcon size={14} /> {cfg.label}
                   </span>
@@ -243,28 +249,29 @@ export default function Bookings() {
                   <p className="font-extrabold text-primary text-base text-right">{b.pay}</p>
                 </div>
 
-                {/* Role-based Action Buttons */}
-                <div className="pt-2 border-t border-border flex gap-2 flex-wrap justify-end">
-                  {/* Provider Actions */}
-                  {role === 'provider' && statusKey === 'pending' && (
+                {/* Action Buttons */}
+                <div className="pt-2 border-t border-border flex gap-2 flex-wrap justify-end items-center">
+                  {/* Job Provider Actions for Pending Applications */}
+                  {role === 'job_provider' && statusKey === 'pending' && (
                     <>
                       <button
                         onClick={() => handleStatusChange(bId, 'reject')}
                         className="btn-secondary text-red-600 border-red-200 py-2 px-4 text-xs font-bold flex-1"
                         id={`btn-reject-${bId}`}
                       >
-                        Reject
+                        Decline
                       </button>
                       <button
                         onClick={() => handleStatusChange(bId, 'accept')}
-                        className="btn-primary py-2 px-4 text-xs font-bold flex-1"
+                        className="btn-primary py-2 px-4 text-xs font-bold flex-1 bg-emerald-600 hover:bg-emerald-700"
                         id={`btn-accept-${bId}`}
                       >
-                        Accept Request
+                        Approve Request
                       </button>
                     </>
                   )}
 
+                  {/* Mark Completed */}
                   {statusKey === 'confirmed' && (
                     <button
                       onClick={() => handleStatusChange(bId, 'complete')}
@@ -275,8 +282,8 @@ export default function Bookings() {
                     </button>
                   )}
 
-                  {/* Customer Cancel — opens confirmation dialog */}
-                  {statusKey !== 'completed' && statusKey !== 'cancelled' && role === 'customer' && (
+                  {/* Job Provider Cancel */}
+                  {statusKey !== 'completed' && statusKey !== 'cancelled' && role === 'job_provider' && statusKey !== 'pending' && (
                     <button
                       onClick={() => setConfirmCancel(bId)}
                       className="btn-secondary text-red-600 border-red-200 py-2 px-4 text-xs font-bold"
@@ -287,11 +294,23 @@ export default function Bookings() {
                     </button>
                   )}
 
+                  {/* Visible Message Button with Icon + Text on all cards */}
                   <button
-                    onClick={() => navigate('/chat')}
-                    className="btn-ghost py-2 px-3 text-xs"
+                    onClick={() => {
+                      const convId = `conv_${bId}`
+                      const targetName = role === 'provider' ? (b.customerName || 'Job Provider') : (b.providerName || 'Provider')
+                      navigate('/chat', {
+                        state: {
+                          conversationId: convId,
+                          name: targetName,
+                          role: role === 'provider' ? 'Job Provider' : 'Service Provider',
+                        },
+                      })
+                    }}
+                    className="btn-secondary text-primary border-primary/30 hover:bg-primary-50 py-2 px-3.5 text-xs font-bold flex items-center gap-1.5"
+                    id={`btn-message-${bId}`}
                   >
-                    💬 Message
+                    <MessageSquare size={15} /> Message
                   </button>
                 </div>
               </div>

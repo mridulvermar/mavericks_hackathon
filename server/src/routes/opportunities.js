@@ -2,7 +2,9 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Opportunity from '../models/Opportunity.js'
 import User from '../models/User.js'
-import { optionalAuth } from '../middleware/auth.js'
+import { authenticate, authorize, optionalAuth } from '../middleware/auth.js'
+import Booking from '../models/Booking.js'
+import { mockBookings } from './bookings.js'
 import { scoreOpportunity } from '../utils/matching.js'
 import { demoOpportunities } from '../seed.js'
 
@@ -82,6 +84,113 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 })
 
+// In-memory array for customer posted opportunities in fallback mode
+export let mockCustomerPostings = []
+
+// ── GET /api/opportunities/my-postings ────────────────────────────────
+router.get('/my-postings', authenticate, async (req, res) => {
+  try {
+    let postings = []
+    const userId = req.user.id
+
+    if (mongoose.connection.readyState === 1) {
+      postings = await Opportunity.find({
+        $or: [
+          { postedBy: userId },
+          { postedById: userId },
+        ],
+      }).sort({ createdAt: -1 }).lean()
+    }
+
+    if (!postings || postings.length === 0) {
+      postings = mockCustomerPostings.filter(p => p.postedById === userId || p.postedBy === userId)
+    }
+
+    // Attach applicant count to each posting
+    let allBookings = []
+    if (mongoose.connection.readyState === 1) {
+      allBookings = await Booking.find().lean()
+    } else {
+      allBookings = [...mockBookings]
+    }
+
+    const enhanced = postings.map(p => {
+      const pId = String(p._id || p.id)
+      const apps = allBookings.filter(b => String(b.itemId) === pId || b.title === p.title)
+      return {
+        ...p,
+        applicantCount: apps.length,
+        applications: apps,
+      }
+    })
+
+    res.json({ success: true, data: enhanced, total: enhanced.length })
+  } catch (error) {
+    console.error('Error fetching customer postings:', error)
+    res.status(500).json({ success: false, message: 'Failed to fetch your postings.' })
+  }
+})
+
+// ── GET /api/opportunities/:id/applications (Applications for a posting, owner only) ──
+router.get('/:id/applications', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user.id
+
+    // Verify the requesting user owns this posting
+    let posting = null
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(id)) {
+      posting = await Opportunity.findById(id).lean()
+    }
+    if (!posting) {
+      posting = (await import('../seed.js')).demoOpportunities.find((o, idx) => String(idx + 1) === id)
+    }
+    if (!posting) {
+      return res.status(404).json({ success: false, message: 'Posting not found.' })
+    }
+    const ownerId = String(posting.postedBy || posting.postedById || '')
+    if (ownerId && ownerId !== userId) {
+      return res.status(403).json({ success: false, message: 'You can only view applications for your own postings.' })
+    }
+
+    // Fetch all bookings/applications linked to this posting
+    let applications = []
+    if (mongoose.connection.readyState === 1) {
+      applications = await Booking.find({
+        $or: [
+          { itemId: id },
+          { itemId: posting._id ? String(posting._id) : id },
+          { title: posting.title },
+        ],
+      }).sort({ createdAt: -1 }).lean()
+    } else {
+      applications = mockBookings.filter(b =>
+        b.itemId === id || b.title === posting.title
+      )
+    }
+
+    res.json({
+      success: true,
+      postingTitle: posting.title,
+      data: applications.map(app => ({
+        _id: app._id || app.id,
+        id: app._id || app.id,
+        providerName: app.providerName || 'Unknown Applicant',
+        providerSkills: app.skills || app.providerSkills || [],
+        bio: app.bio || app.notes || '',
+        status: app.status || 'pending',
+        date: app.date || new Date(app.createdAt).toLocaleDateString('en-IN'),
+        pay: app.pay || posting.pay,
+        icon: app.icon || '👤',
+      })),
+      total: applications.length,
+    })
+  } catch (error) {
+    console.error('Error fetching posting applications:', error)
+    res.status(500).json({ success: false, message: 'Failed to fetch applications.' })
+  }
+})
+
 // ── GET /api/opportunities/:id ───────────────────────────────────────
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
@@ -111,39 +220,79 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 })
 
-// ── POST /api/opportunities (Create) ────────────────────────────────
-router.post('/', async (req, res) => {
+// ── POST /api/opportunities (Create Job / Product Request by Job Provider) ──
+router.post('/', authenticate, authorize('job_provider', 'admin'), async (req, res) => {
   try {
-    const { title, category, description, pay, location, city, type, requirements, skills } = req.body
+    const { title, category, description, pay, location, city, type, kind, requirements, skills } = req.body
     if (!title || !category || !pay || !location) {
       return res.status(400).json({ success: false, message: 'Title, category, pay, and location are required.' })
     }
 
-    if (mongoose.connection.readyState === 1) {
-      const newOpp = await Opportunity.create({
-        title, category, description, pay, location, city: city || 'Chennai', type, requirements, skills,
-        clientName: req.body.clientName || 'Local Employer',
-      })
-      return res.status(201).json({ success: true, data: newOpp })
+    const postingData = {
+      title,
+      category,
+      description: description || 'No detailed description provided.',
+      pay,
+      location,
+      city: city || 'Chennai',
+      type: type || 'Part-time',
+      kind: kind === 'product_request' ? 'product_request' : 'job',
+      requirements: Array.isArray(requirements) ? requirements : (requirements ? [requirements] : []),
+      skills: Array.isArray(skills) ? skills : (skills ? [skills] : []),
+      clientName: req.user.name || 'Local Employer',
+      clientVerified: true,
+      urgent: false,
+      status: 'open',
+      posted: 'Just now',
+      postedBy: mongoose.Types.ObjectId.isValid(req.user.id) ? req.user.id : undefined,
+      postedById: req.user.id,
     }
 
-    // Demo fallback response
-    const mockOpp = {
-      _id: String(Date.now()),
-      title, category, description, pay, location, city: city || 'Chennai', type: type || 'Part-time',
-      requirements: requirements || [], skills: skills || [],
-      clientName: req.body.clientName || 'Local Employer',
-      clientVerified: true, urgent: false, posted: 'Just now',
+    let createdOpp = null
+    if (mongoose.connection.readyState === 1) {
+      createdOpp = await Opportunity.create(postingData)
+    } else {
+      const newId = `opp_${Date.now()}`
+      createdOpp = { _id: newId, id: newId, ...postingData, createdAt: new Date().toISOString() }
+      mockCustomerPostings.unshift(createdOpp)
     }
-    res.status(201).json({ success: true, data: mockOpp })
+
+    res.status(201).json({
+      success: true,
+      message: 'Job posting published successfully! Providers will be notified.',
+      data: createdOpp,
+    })
   } catch (error) {
     console.error('Error creating opportunity:', error)
-    res.status(500).json({ success: false, message: 'Failed to create opportunity.' })
+    res.status(500).json({ success: false, message: 'Failed to create opportunity posting.' })
+  }
+})
+
+// ── PATCH /api/opportunities/:id/status (Close / Reopen Posting) ────
+router.patch('/:id/status', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    const { id } = req.params
+
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(id)) {
+      const updated = await Opportunity.findByIdAndUpdate(id, { status }, { new: true })
+      if (updated) return res.json({ success: true, message: `Posting status updated to ${status}`, data: updated })
+    }
+
+    const found = mockCustomerPostings.find(p => p._id === id || p.id === id)
+    if (found) {
+      found.status = status
+      return res.json({ success: true, message: `Posting status updated to ${status}`, data: found })
+    }
+
+    res.status(404).json({ success: false, message: 'Posting not found.' })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update posting status.' })
   }
 })
 
 // ── PUT /api/opportunities/:id (Update) ─────────────────────────────
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(req.params.id)) {
       const updated = await Opportunity.findByIdAndUpdate(req.params.id, req.body, { new: true })
@@ -157,7 +306,7 @@ router.put('/:id', async (req, res) => {
 })
 
 // ── DELETE /api/opportunities/:id ───────────────────────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(req.params.id)) {
       await Opportunity.findByIdAndDelete(req.params.id)
@@ -166,11 +315,6 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to delete opportunity.' })
   }
-})
-
-// ── POST /api/opportunities/:id/apply ───────────────────────────────
-router.post('/:id/apply', (req, res) => {
-  res.json({ success: true, message: 'Application submitted! The employer will contact you soon.' })
 })
 
 export default router

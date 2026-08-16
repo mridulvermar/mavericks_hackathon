@@ -25,7 +25,7 @@ cd server
 cp .env.example .env         # Copy environment file
 # Edit .env and add your API keys (all optional for demo)
 npm install
-npm run dev                  # Starts on http://localhost:5000
+npm run dev                  # Starts on http://localhost:5050
 ```
 
 ### 3. Setup the Client

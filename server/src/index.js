@@ -16,6 +16,8 @@ import chatRouter    from './routes/chat.js'
 import aiRouter      from './routes/ai.js'
 import productsRouter from './routes/products.js'
 import earningsRouter from './routes/earnings.js'
+import notificationsRouter from './routes/notifications.js'
+import reportsRouter from './routes/reports.js'
 import { setupSocketIO } from './socket/index.js'
 
 const app  = express()
@@ -24,13 +26,16 @@ const PORT = process.env.PORT || 5000
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 // ── CORS & Security Middleware ──────────────────
-app.use(cors({
-  origin: true,
+const corsOptions = {
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
-}))
-app.options('*', cors())
+}
+
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
+app.options(/(.*)/, cors(corsOptions))
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -58,6 +63,8 @@ app.use('/api/opportunities', oppRouter)
 app.use('/api/products',      productsRouter)
 app.use('/api/bookings',      bookingRouter)
 app.use('/api/earnings',      earningsRouter)
+app.use('/api/notifications', notificationsRouter)
+app.use('/api/reports',       reportsRouter)
 app.use('/api/chat',          chatRouter)
 app.use('/api/ai',            aiRouter)
 
@@ -82,6 +89,15 @@ const io = new SocketServer(httpServer, {
 setupSocketIO(io)
 
 // ── Async Server Initialization ───────────────────
+httpServer.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Port ${PORT} is already in use — stop the other process or set a different PORT in .env\n`)
+  } else {
+    console.error(`\n❌ Server initialization error: ${err.message}\n`)
+  }
+  process.exit(1)
+})
+
 async function startServer() {
   try {
     // Await database connection BEFORE opening HTTP port
@@ -94,7 +110,7 @@ async function startServer() {
       console.log(`   Health check: http://localhost:${PORT}/api/health\n`)
     })
   } catch (err) {
-    console.error('❌ Failed to start server due to Database Connection failure.')
+    console.error('❌ Failed to start server due to Database Connection failure:', err.message)
     process.exit(1)
   }
 }

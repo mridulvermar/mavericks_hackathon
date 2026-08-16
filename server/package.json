@@ -5,12 +5,15 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "prestart": "npx kill-port 5050",
     "start": "node src/index.js",
+    "predev": "npx kill-port 5050",
     "dev": "nodemon src/index.js",
     "seed": "node src/seed.js",
     "lint": "eslint src"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -20,10 +23,10 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.0",
-    "socket.io": "^4.8.0",
-    "@google/generative-ai": "^0.21.0"
+    "socket.io": "^4.8.0"
   },
   "devDependencies": {
+    "kill-port": "^2.0.1",
     "nodemon": "^3.1.7"
   }
 }

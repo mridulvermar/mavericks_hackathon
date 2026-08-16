@@ -205,13 +205,32 @@ Your goals:
   }
 })
 
-// Keep legacy endpoints preserved
+// Mock AI Endpoints for Skill Discovery & Profile Generation
 router.post('/discover-skills', optionalAuth, async (req, res, next) => {
-  res.json({ success: true, skills: [{ icon: '🍳', name: 'Cooking' }, { icon: '🧵', name: 'Tailoring' }] })
+  res.json({
+    success: true,
+    source: 'mock-ai',
+    skills: [
+      { icon: '🍳', name: 'Cooking' },
+      { icon: '🧵', name: 'Tailoring & Embroidery' },
+    ],
+    experienceYears: '20+ years',
+    suggestedServices: ['Traditional South & North Indian Meals', 'Custom Blouse Stitching & Alterations'],
+    recommendation: 'Highly suitable for offering specialized home cooking classes and custom tailoring listings.',
+  })
 })
 
 router.post('/generate-profile', optionalAuth, async (req, res, next) => {
-  res.json({ success: true, headline: 'Experienced Home Specialist', about: 'Namaste! I offer traditional home services.' })
+  res.json({
+    success: true,
+    source: 'mock-ai',
+    headline: 'Master Home Cook & Experienced Tailor',
+    about: 'Namaste! With over 20 years of experience, I provide authentic home-cooked culinary experiences and personalized saree blouse stitching.',
+    serviceDescriptions: [
+      '1-on-1 Cooking Masterclasses (Traditional Recipes)',
+      'Custom Designer Saree Blouse Stitching & Embroidery',
+    ],
+  })
 })
 
 export default router

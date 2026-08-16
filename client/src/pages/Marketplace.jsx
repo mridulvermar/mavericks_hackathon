@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingBag, Star, Plus, ChevronRight, CheckCircle, Wrench, Package } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_BASE_URL } from '../api/axios'
 
 const categories = ['All', 'Food', 'Craft', 'Tailoring', 'Cooking', 'Teaching', 'Decor']
 

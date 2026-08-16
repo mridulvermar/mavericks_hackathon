@@ -26,13 +26,20 @@ export const setupSocketIO = (io) => {
       const { roomId, conversationId, message, senderId, senderName, text } = data
       const targetRoom = roomId || conversationId || 'c1'
 
+      // Check if recipient is active in the same chat room
+      const roomSockets = io.sockets.adapter.rooms.get(`chat:${targetRoom}`)
+      const roomSize = roomSockets ? roomSockets.size : 0
+      const computedStatus = roomSize > 1 ? 'read' : 'delivered'
+
       const msgData = {
         _id: String(Date.now()),
         id: String(Date.now()),
         conversationId: targetRoom,
         text: text || message?.text || '',
-        sender: senderId === 'me' ? 'me' : 'other',
-        senderName: senderName || 'Priya Mehta',
+        senderId: senderId,
+        sender: 'other', // Will be determined on client by comparing senderId
+        senderName: senderName || 'User',
+        status: computedStatus,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date().toISOString(),
       }
@@ -45,6 +52,7 @@ export const setupSocketIO = (io) => {
             senderId,
             senderName: msgData.senderName,
             text: msgData.text,
+            status: msgData.status,
             timestamp: msgData.timestamp,
           })
         } catch (err) {

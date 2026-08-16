@@ -71,7 +71,7 @@ router.post('/register', async (req, res, next) => {
       name: cleanName,
       phone: cleanPhone,
       password: hashedPassword,
-      role: ['provider', 'customer', 'admin'].includes(role) ? role : 'provider',
+      role: ['provider', 'job_provider', 'admin'].includes(role) ? role : 'provider',
       providerType: ['senior_citizen', 'homemaker', 'none'].includes(providerType) ? providerType : 'senior_citizen',
     })
 
@@ -105,6 +105,9 @@ router.post('/login', async (req, res, next) => {
     const user = await User.findOne({ phone: cleanPhone }).select('+password')
     if (!user) {
       return next(createError('No account found with this mobile number. Please register first.', 401))
+    }
+    if (user.isDeleted) {
+      return next(createError('This account has been deleted. Please register a new account.', 401))
     }
 
     const isMatch = await bcrypt.compare(password, user.password)

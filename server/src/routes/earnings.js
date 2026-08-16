@@ -2,10 +2,11 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Booking from '../models/Booking.js'
 import { mockBookings } from './bookings.js'
+import { authenticate, authorize } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/', async (req, res) => {
+router.get('/', authenticate, authorize('provider', 'admin'), async (req, res) => {
   try {
     let allBookings = []
 

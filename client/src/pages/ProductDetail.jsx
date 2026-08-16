@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Star, ArrowLeft, Share2, Heart, ShoppingCart, MessageSquare, CheckCircle, MapPin, ShieldCheck, Calendar, X } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_BASE_URL } from '../api/axios'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -51,7 +51,7 @@ export default function ProductDetail() {
           itemType: product.itemType || 'product',
           itemId: id,
           providerName: product.seller || 'Lakshmi Ammal',
-          customerName: 'Sunita Ji (Customer)',
+          customerName: JSON.parse(localStorage.getItem('sh_user') || '{}').name || 'Anand Kumar (Job Provider)',
           date: bookingDate,
           time: bookingTime,
           pay: product.price,

@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import mongoose from 'mongoose'
 import Booking from '../models/Booking.js'
+import { authenticate, authorize, optionalAuth } from '../middleware/auth.js'
+import { sendNotification } from './notifications.js'
 
 const router = Router()
 
@@ -132,8 +134,8 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// ── POST /api/bookings (Create new booking) ──────────────────────────
-router.post('/', async (req, res) => {
+// ── POST /api/bookings (Create new booking / application) ────────────
+router.post('/', optionalAuth, async (req, res) => {
   try {
     const { title, itemType, itemId, date, time, pay, location, providerName, customerName, icon } = req.body
 
@@ -142,11 +144,16 @@ router.post('/', async (req, res) => {
     }
 
     const numAmount = parseAmount(pay || '₹500')
+    const applicantName = req.user?.name || customerName || 'Sunita Ji (Applicant)'
+    const applicantId = req.user?.id || 'u_customer'
+
     const bookingData = {
       title,
       itemType: itemType || 'opportunity',
       itemId: itemId || String(Date.now()),
-      customerName: customerName || 'Sunita Ji (Customer)',
+      customerName: applicantName,
+      customerId: applicantId,
+      customer: req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id) ? req.user.id : undefined,
       providerName: providerName || 'Lakshmi Ammal',
       date,
       time: time || '10:00 AM',
@@ -166,9 +173,17 @@ router.post('/', async (req, res) => {
       mockBookings.unshift(createdBooking)
     }
 
+    // Trigger notification to applicant
+    sendNotification({
+      userId: applicantId,
+      title: 'Application Sent',
+      message: `Your application for "${title}" was sent to ${providerName || 'employer'}. You'll be notified when they respond.`,
+      type: 'booking',
+    })
+
     res.status(201).json({
       success: true,
-      message: 'Booking request sent successfully! Provider will confirm soon.',
+      message: `Your application was sent to ${providerName || 'the employer'}. You'll be notified when they respond.`,
       data: createdBooking,
     })
   } catch (error) {
@@ -181,38 +196,62 @@ router.post('/', async (req, res) => {
 async function handleStatusUpdate(req, res, targetStatus, successMsg) {
   try {
     const { id } = req.params
+    let updatedBooking = null
+
     if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(id)) {
-      const updated = await Booking.findByIdAndUpdate(id, { status: targetStatus }, { new: true })
-      if (updated) return res.json({ success: true, message: successMsg, data: updated })
+      updatedBooking = await Booking.findByIdAndUpdate(id, { status: targetStatus }, { new: true })
     }
 
-    const idx = mockBookings.findIndex(b => b._id === id || b.id === id)
-    if (idx !== -1) {
-      mockBookings[idx].status = targetStatus
-      return res.json({ success: true, message: successMsg, data: mockBookings[idx] })
+    if (!updatedBooking) {
+      const idx = mockBookings.findIndex(b => b._id === id || b.id === id)
+      if (idx !== -1) {
+        mockBookings[idx].status = targetStatus
+        updatedBooking = mockBookings[idx]
+      }
     }
 
-    res.status(404).json({ success: false, message: 'Booking not found.' })
+    if (!updatedBooking) {
+      return res.status(404).json({ success: false, message: 'Booking not found.' })
+    }
+
+    // Create notification for the customer / applicant on status change
+    if (targetStatus === 'confirmed') {
+      sendNotification({
+        userId: updatedBooking.customerId || updatedBooking.customer || 'u_customer',
+        title: 'Application Approved! 🎉',
+        message: `Your application for "${updatedBooking.title}" was approved!`,
+        type: 'booking',
+      })
+    } else if (targetStatus === 'completed') {
+      sendNotification({
+        userId: updatedBooking.customerId || updatedBooking.customer || 'u_customer',
+        title: 'Job Completed ✅',
+        message: `Work for "${updatedBooking.title}" was marked completed. Thank you!`,
+        type: 'booking',
+      })
+    }
+
+    return res.json({ success: true, message: successMsg, data: updatedBooking })
   } catch (error) {
     res.status(500).json({ success: false, message: `Failed to update booking to ${targetStatus}.` })
   }
 }
 
-// Support both PATCH and POST for status endpoints for max browser/CORS compatibility
+// Protected status endpoints: accept & reject status updates for applications/bookings
 router.route('/:id/accept')
-  .patch((req, res) => handleStatusUpdate(req, res, 'confirmed', 'Booking accepted!'))
-  .post((req, res) => handleStatusUpdate(req, res, 'confirmed', 'Booking accepted!'))
+  .patch(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'confirmed', 'Application approved!'))
+  .post(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'confirmed', 'Application approved!'))
 
 router.route('/:id/reject')
-  .patch((req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking rejected.'))
-  .post((req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking rejected.'))
+  .patch(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'cancelled', 'Application declined.'))
+  .post(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'cancelled', 'Application declined.'))
 
 router.route('/:id/complete')
-  .patch((req, res) => handleStatusUpdate(req, res, 'completed', 'Booking marked as completed!'))
-  .post((req, res) => handleStatusUpdate(req, res, 'completed', 'Booking marked as completed!'))
+  .patch(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'completed', 'Booking marked as completed!'))
+  .post(authenticate, authorize('job_provider', 'customer', 'provider', 'admin'), (req, res) => handleStatusUpdate(req, res, 'completed', 'Booking marked as completed!'))
 
 router.route('/:id/cancel')
-  .patch((req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking cancelled.'))
-  .post((req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking cancelled.'))
+  .patch(authenticate, (req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking cancelled.'))
+  .post(authenticate, (req, res) => handleStatusUpdate(req, res, 'cancelled', 'Booking cancelled.'))
 
 export default router

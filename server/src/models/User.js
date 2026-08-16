@@ -21,8 +21,12 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['provider', 'customer', 'admin'],
+    enum: ['provider', 'job_provider', 'admin'],
     default: 'provider',
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
   },
   providerType: {
     type: String,
@@ -45,6 +49,14 @@ const userSchema = new mongoose.Schema({
     mobileVerified: { type: Boolean, default: true },
     identityVerified: { type: Boolean, default: false },
     skillVerified: { type: Boolean, default: false },
+  },
+  verificationRequestPending: { type: Boolean, default: false },
+  preferredLanguage: { type: String, default: 'English' },
+  notificationPreferences: {
+    jobs: { type: Boolean, default: true },
+    messages: { type: Boolean, default: true },
+    payments: { type: Boolean, default: true },
+    updates: { type: Boolean, default: false },
   },
   onboardingComplete: { type: Boolean, default: false },
 }, { timestamps: true })

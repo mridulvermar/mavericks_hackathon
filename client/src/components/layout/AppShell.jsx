@@ -8,15 +8,16 @@ import {
   User,
   Bot,
   MessageSquare,
-  HelpCircle,
   TrendingUp,
   Zap,
   Menu,
   X,
   Bell,
   LogOut,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 import authAPI from '../../api/auth'
+import { API_BASE_URL } from '../../api/axios'
 
 const navItems = [
   { to: '/home',          label: 'Home',          icon: Home },
@@ -31,7 +32,7 @@ const sidebarExtra = [
   { to: '/chat',      label: 'Messages',     icon: MessageSquare },
   { to: '/earnings',  label: 'Earnings',     icon: TrendingUp },
   { to: '/skills',    label: 'My Skills',    icon: Zap },
-  { to: '/help',      label: 'Help & Safety',icon: HelpCircle },
+  { to: '/settings',  label: 'Settings',     icon: SettingsIcon },
 ]
 
 function NavItem({ to, label, icon: Icon, onClick, collapsed }) {
@@ -58,7 +59,48 @@ function NavItem({ to, label, icon: Icon, onClick, collapsed }) {
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showNotifs, setShowNotifs] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const navigate = useNavigate()
+
+  const storedUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const isJobProvider = storedUser.role === 'job_provider' || storedUser.role === 'customer'
+
+  const mainNavItems = isJobProvider
+    ? [
+        { to: '/home', label: 'Home', icon: Home },
+        { to: '/my-postings', label: 'My Postings', icon: Briefcase },
+        { to: '/marketplace', label: 'Services', icon: ShoppingBag },
+        { to: '/bookings', label: 'Bookings', icon: Calendar },
+        { to: '/profile', label: 'Profile', icon: User },
+      ]
+    : navItems
+
+  const filteredTools = sidebarExtra.filter(item => {
+    if (isJobProvider) {
+      return item.to !== '/earnings' && item.to !== '/skills'
+    }
+    return true
+  })
+
+  React.useEffect(() => {
+    const fetchNotifs = async () => {
+      const token = localStorage.getItem('sh_token')
+      if (!token) return
+      try {
+        const res = await fetch(`${API_BASE_URL}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.success && data.data) {
+          setNotifications(data.data)
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    fetchNotifs()
+  }, [])
 
   const handleLogout = async () => {
     await authAPI.logout()
@@ -95,13 +137,13 @@ export default function AppShell() {
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main navigation">
           <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Main</p>
-          {navItems.map(item => (
+          {mainNavItems.map(item => (
             <NavItem key={item.to} {...item} />
           ))}
 
           <div className="border-t border-border my-3" />
           <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Tools</p>
-          {sidebarExtra.map(item => (
+          {filteredTools.map(item => (
             <NavItem key={item.to} {...item} />
           ))}
         </nav>
@@ -158,12 +200,12 @@ export default function AppShell() {
 
         <nav className="px-3 py-4 space-y-1 overflow-y-auto h-full pb-28" aria-label="Mobile navigation">
           <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Main</p>
-          {navItems.map(item => (
+          {mainNavItems.map(item => (
             <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
           ))}
           <div className="border-t border-border my-3" />
           <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Tools</p>
-          {sidebarExtra.map(item => (
+          {filteredTools.map(item => (
             <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
           ))}
           <div className="border-t border-border my-3" />
@@ -219,7 +261,7 @@ export default function AppShell() {
         aria-label="Bottom navigation"
       >
         <div className="flex items-center justify-around px-2 py-2">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {mainNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = 'http://localhost:5000/api'
+const API_BASE = 'http://localhost:5050/api'
 
 async function runTests() {
   console.log('====================================================')
@@ -124,24 +124,79 @@ async function runTests() {
     console.error('   ❌ Profile generation failed:', err.response ? err.response.data : err.message)
   }
 
-  // 8. POST /api/ai/chat
+  // 8. POST /api/ai/assistant
   try {
-    console.log('🔹 Test 8: POST /api/ai/chat (Prompt: Safety guidelines)')
+    console.log('🔹 Test 8: POST /api/ai/assistant (Prompt: Safety guidelines)')
     const chatRes = await axios.post(
-      `${API_BASE}/ai/chat`,
+      `${API_BASE}/ai/assistant`,
       { message: 'How do I stay safe when meeting a client for cooking lessons?' },
       { headers: { Authorization: `Bearer ${token}` } }
     )
     console.log('   Status:', chatRes.status, '| Source:', chatRes.data.source)
     console.log('   Response Preview:', chatRes.data.response.slice(0, 120) + '...')
-    console.log('   ✅ AI Chat passed.\n')
+    console.log('   ✅ AI Assistant chat passed.\n')
   } catch (err) {
-    console.error('   ❌ AI Chat failed:', err.response ? err.response.data : err.message)
+    console.error('   ❌ AI Assistant chat failed:', err.response ? err.response.data : err.message)
   }
 
-  // 9. ERROR HANDLING & EDGE CASES
+  // 9. PATCH & OPTIONS PREFLIGHT VERIFICATION
   try {
-    console.log('🔹 Test 9: Edge Case - Invalid Credentials')
+    console.log('🔹 Test 9: OPTIONS Preflight Request (PATCH Method)')
+    const optionsRes = await axios.options(`${API_BASE}/opportunities/opp_1/status`, {
+      headers: {
+        'Access-Control-Request-Method': 'PATCH',
+        'Access-Control-Request-Headers': 'authorization,content-type',
+        Origin: 'http://localhost:5173',
+      },
+    })
+    console.log('   Status:', optionsRes.status, '| Allowed Methods:', optionsRes.headers['access-control-allow-methods'])
+    console.log('   ✅ CORS OPTIONS preflight passed.\n')
+
+    console.log('🔹 Test 10: PATCH /api/users/me (Profile Update)')
+    const patchRes = await axios.patch(
+      `${API_BASE}/users/me`,
+      { city: 'Chennai', preferredLanguage: 'Tamil' },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    console.log('   Status:', patchRes.status, '| City:', patchRes.data.user?.city, '| Language:', patchRes.data.user?.preferredLanguage)
+    console.log('   ✅ PATCH user profile passed.\n')
+
+    console.log('🔹 Test 11: PATCH /api/users/me/password (Bcrypt Password Change)')
+    const passRes = await axios.patch(
+      `${API_BASE}/users/me/password`,
+      { currentPassword: 'password123', newPassword: 'newpassword123' },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    console.log('   Status:', passRes.status, '| Message:', passRes.data.message)
+    console.log('   ✅ Bcrypt password update passed.\n')
+
+    console.log('🔹 Test 12: POST /api/reports & GET /api/reports & PATCH /api/reports/:id/resolve')
+    const reportRes = await axios.post(
+      `${API_BASE}/reports`,
+      { reason: 'Suspicious Payment Request', message: 'Client requested off-platform transfer' },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    console.log('   Submitted Report Status:', reportRes.status, '| ID:', reportRes.data.data._id)
+    const reportId = reportRes.data.data._id
+
+    const listRes = await axios.get(`${API_BASE}/reports`, { headers: { Authorization: `Bearer ${token}` } })
+    console.log('   Admin Fetched Reports Count:', listRes.data.total)
+
+    const resolveRes = await axios.patch(`${API_BASE}/reports/${reportId}/resolve`, {}, { headers: { Authorization: `Bearer ${token}` } })
+    console.log('   Resolve Report Status:', resolveRes.data.data.status)
+    console.log('   ✅ Safety Report lifecycle (submit -> view -> resolve) passed.\n')
+
+    console.log('🔹 Test 13: DELETE /api/users/me (Soft Delete Account)')
+    const delRes = await axios.delete(`${API_BASE}/users/me`, { headers: { Authorization: `Bearer ${token}` } })
+    console.log('   Delete Account Status:', delRes.status, '| Message:', delRes.data.message)
+    console.log('   ✅ Soft delete account endpoint passed.\n')
+  } catch (err) {
+    console.error('   ❌ Extended feature test failed:', err.response ? err.response.data : err.message)
+  }
+
+  // 11. ERROR HANDLING & EDGE CASES
+  try {
+    console.log('🔹 Test 11: Edge Case - Invalid Credentials')
     await axios.post(`${API_BASE}/auth/login`, { phone: '0000000000', password: 'wrongpassword' })
   } catch (err) {
     console.log('   Status Code:', err.response?.status, '| Friendly Message:', err.response?.data?.message)
@@ -149,7 +204,7 @@ async function runTests() {
   }
 
   try {
-    console.log('🔹 Test 10: Edge Case - Unauthorized Request (No Token)')
+    console.log('🔹 Test 12: Edge Case - Unauthorized Request (No Token)')
     await axios.get(`${API_BASE}/auth/me`)
   } catch (err) {
     console.log('   Status Code:', err.response?.status, '| Friendly Message:', err.response?.data?.message)
