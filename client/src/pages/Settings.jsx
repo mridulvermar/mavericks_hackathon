@@ -364,7 +364,7 @@ export default function Settings() {
         </button>
       </div>
 
-      <p className="text-center text-muted text-sm pb-4">SilverHands v0.1.0 — Empowering Senior Citizens & Homemakers</p>
+      <p className="text-center text-muted text-sm pb-4">Career 2.0 v0.1.0 — Empowering Senior Citizens & Homemakers</p>
     </div>
   )
 }

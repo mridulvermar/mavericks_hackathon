@@ -90,12 +90,12 @@ router.post('/translate', async (req, res, next) => {
   }
 })
 
-// ── Rule-based Mock Engine for SilverAI Livelihood Assistant ──
-const SILVER_AI_RESPONSES = {
+// ── Rule-based Mock Engine for CareerAI Livelihood Assistant ──
+const CAREER_AI_RESPONSES = {
   cooking: `🍳 **Cooking & Culinary Opportunities:**
 • **Home Cooking Classes**: Teach 1-on-1 or small family sessions (Est. ₹500–₹1,200/session)
 • **Catering & Tiffin Services**: Provide homemade meals for events or offices
-• **Homemade Pickles & Ghee**: Sell through the SilverHands Marketplace!
+• **Homemade Pickles & Ghee**: Sell through the Career 2.0 Marketplace!
 
 💡 *Tip: Click [Find Cooking Opportunities] below to browse active listings near Chennai and Coimbatore!*`,
 
@@ -112,15 +112,15 @@ const SILVER_AI_RESPONSES = {
 • 📐 **Maths/Science Tutoring**: ₹300–₹600 per hour
 • 🫙 **Homemade Food/Craft Products**: ₹200–₹500 per unit
 
-⚠️ *Note: All earnings figures are estimated market benchmarks. Actual income depends on work completed and location. SilverHands does not guarantee fixed earnings.*`,
+⚠️ *Note: All earnings figures are estimated market benchmarks. Actual income depends on work completed and location. Career 2.0 does not guarantee fixed earnings.*`,
 
-  safety: `🛡️ **SilverHands Safety & Ethical Rules:**
-• 🔒 **Chat First**: Always communicate with clients using SilverHands Messages
+  safety: `🛡️ **Career 2.0 Safety & Ethical Rules:**
+• 🔒 **Chat First**: Always communicate with clients using Career 2.0 Messages
 • 👤 **Verify Badges**: Look for the ✓ Verified badge on employer profiles
 • 📍 **Share Location**: Inform family members before visiting an in-person client venue
 • 📞 **Safety Helpline**: For urgent help, call 1800-XXX-XXXX or tap the Report button`,
 
-  default: `Namaste! 🙏 I am **SilverAI**, your friendly livelihood assistant on SilverHands.
+  default: `Namaste! 🙏 I am **CareerAI**, your friendly livelihood assistant on Career 2.0.
 
 I am here to support senior citizens and homemakers in India to earn meaningful income.
 
@@ -133,26 +133,26 @@ I can assist you with:
 How can I help you today?`,
 }
 
-function getSilverAIResponse(promptText = '') {
+function getCareerAIResponse(promptText = '') {
   const lower = promptText.toLowerCase()
   if (lower.includes('cook') || lower.includes('recipe') || lower.includes('food') || lower.includes('kitchen')) {
-    return SILVER_AI_RESPONSES.cooking
+    return CAREER_AI_RESPONSES.cooking
   }
   if (lower.includes('stitch') || lower.includes('tailor') || lower.includes('embroidery') || lower.includes('saree')) {
-    return SILVER_AI_RESPONSES.tailoring
+    return CAREER_AI_RESPONSES.tailoring
   }
   if (lower.includes('earn') || lower.includes('income') || lower.includes('money') || lower.includes('pay')) {
-    return SILVER_AI_RESPONSES.earnings
+    return CAREER_AI_RESPONSES.earnings
   }
   if (lower.includes('safe') || lower.includes('security') || lower.includes('protect') || lower.includes('help')) {
-    return SILVER_AI_RESPONSES.safety
+    return CAREER_AI_RESPONSES.safety
   }
-  return SILVER_AI_RESPONSES.default
+  return CAREER_AI_RESPONSES.default
 }
 
 /**
  * POST /api/ai/assistant
- * Gemini-backed chatbot for SilverAI friendly livelihood assistant
+ * Gemini-backed chatbot for CareerAI friendly livelihood assistant
  */
 router.post('/assistant', optionalAuth, async (req, res, next) => {
   try {
@@ -169,9 +169,9 @@ router.post('/assistant', optionalAuth, async (req, res, next) => {
       try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai')
         const genAI = new GoogleGenerativeAI(apiKey)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-        const systemPrompt = `You are SilverAI, a warm, respectful, and encouraging livelihood assistant for SilverHands, an AI platform empowering Indian senior citizens and homemakers.
+        const systemPrompt = `You are CareerAI, a warm, respectful, and encouraging livelihood assistant for Career 2.0, an AI platform empowering Indian senior citizens and homemakers.
 Your goals:
 1. Help users discover opportunities, list products, estimate income, and stay safe.
 2. Never invent fake income guarantees or fake customer reviews.
@@ -194,7 +194,7 @@ Your goals:
     }
 
     // Fallback Mock Engine
-    const mockResponse = getSilverAIResponse(cleanMessage)
+    const mockResponse = getCareerAIResponse(cleanMessage)
     return res.json({
       success: true,
       source: 'mock-assistant',
@@ -357,7 +357,7 @@ function extractSkillsNLP(text = '') {
 
   // 4. Recommendation text
   const topNames = matchedSkills.slice(0, 3).map(s => s.name).join(' & ')
-  const recommendation = `Based on your ${experienceYears} of real-world knowledge in ${topNames}, you have high earning potential for local services and marketplace products on SilverHands.`
+  const recommendation = `Based on your ${experienceYears} of real-world knowledge in ${topNames}, you have high earning potential for local services and marketplace products on Career 2.0.`
 
   return {
     skills: matchedSkills.slice(0, 4),
@@ -459,7 +459,7 @@ router.post('/generate-profile', optionalAuth, async (req, res, next) => {
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-        const prompt = `Generate a warm, dignified, and professional profile for an Indian senior citizen/homemaker on SilverHands platform.
+        const prompt = `Generate a warm, dignified, and professional profile for an Indian senior citizen/homemaker on Career 2.0 platform.
 Description: "${description}"
 Skills: ${JSON.stringify(skills)}
 

@@ -58,8 +58,12 @@ export default function Register() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-2">🤲</div>
-          <h1 className="text-3xl font-extrabold text-foreground">Join SilverHands</h1>
+          <img
+            src="/logo.png"
+            alt="Career 2.0 Logo"
+            className="w-20 h-20 rounded-2xl shadow-lg border-2 border-primary-200 object-cover mx-auto mb-2"
+          />
+          <h1 className="text-3xl font-extrabold text-foreground">Join Career 2.0</h1>
           <p className="text-muted mt-1 text-base">Create your free account & start earning or hiring</p>
         </div>
 

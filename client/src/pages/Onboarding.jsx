@@ -44,7 +44,7 @@ export default function Onboarding() {
   const steps = [
     {
       title: 'Step 1: Select Your Role 🎯',
-      subtitle: 'Tell us how you plan to use SilverHands',
+      subtitle: 'Tell us how you plan to use Career 2.0',
     },
     {
       title: 'Step 2: Basic Details 📝',

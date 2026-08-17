@@ -121,16 +121,18 @@ export default function AppShell() {
       <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-border fixed top-0 left-0 z-30 shadow-card">
         {/* Logo — semantic button */}
         <button
-          className="flex items-center gap-3 px-5 py-5 border-b border-border cursor-pointer hover:bg-primary-50 transition-colors text-left w-full"
+          className="flex items-center gap-3 px-5 py-4 border-b border-border cursor-pointer hover:bg-primary-50 transition-colors text-left w-full"
           onClick={() => navigate('/home')}
-          aria-label="SilverHands — Go to Home"
+          aria-label="Career 2.0 — Go to Home"
         >
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl select-none">
-            🤲
-          </div>
+          <img
+            src="/logo.png"
+            alt="Career 2.0 Logo"
+            className="w-11 h-11 rounded-xl object-cover shadow-xs border border-primary-200"
+          />
           <div>
-            <p className="font-bold text-lg text-foreground leading-none">SilverHands</p>
-            <p className="text-xs text-muted">Earn with your Wisdom</p>
+            <p className="font-bold text-lg text-foreground leading-none">Career 2.0</p>
+            <p className="text-xs text-muted mt-0.5">Earn with your Wisdom</p>
           </div>
         </button>
 
@@ -181,12 +183,14 @@ export default function AppShell() {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl">
-              🤲
-            </div>
+            <img
+              src="/logo.png"
+              alt="Career 2.0 Logo"
+              className="w-10 h-10 rounded-xl object-cover shadow-xs border border-primary-200"
+            />
             <div>
-              <p className="font-bold text-lg text-foreground leading-none">SilverHands</p>
-              <p className="text-xs text-muted">Earn with your Wisdom</p>
+              <p className="font-bold text-lg text-foreground leading-none">Career 2.0</p>
+              <p className="text-xs text-muted mt-0.5">Earn with your Wisdom</p>
             </div>
           </div>
           <button
@@ -236,8 +240,12 @@ export default function AppShell() {
             <Menu size={26} />
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🤲</span>
-            <span className="font-bold text-lg text-foreground">SilverHands</span>
+            <img
+              src="/logo.png"
+              alt="Career 2.0 Logo"
+              className="w-8 h-8 rounded-lg object-cover"
+            />
+            <span className="font-bold text-lg text-foreground">Career 2.0</span>
           </div>
           <button
             onClick={() => navigate('/chat')}

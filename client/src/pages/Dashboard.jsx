@@ -157,7 +157,7 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-primary-600 to-primary-400 rounded-2xl p-5 text-white flex items-start gap-4 shadow-card">
         <Bot size={32} className="shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold text-lg">{isJobProvider ? 'SilverAI Assistant Tip' : 'AI Livelihood Tip'}</p>
+          <p className="font-semibold text-lg">{isJobProvider ? 'CareerAI Assistant Tip' : 'CareerAI Livelihood Tip'}</p>
           <p className="text-sm opacity-90 mt-1 leading-relaxed">
             {isJobProvider
               ? 'Need homemade tiffins, saree blouse stitching, or maths tutoring? Post a job or requirement and senior specialists near you will apply!'
@@ -291,7 +291,7 @@ export default function Dashboard() {
             ))
           ) : (
             [
-              { icon: isJobProvider ? '📋' : '✅', text: isJobProvider ? 'Welcome to SilverHands!' : 'Start applying to opportunities', time: 'Get started' },
+              { icon: isJobProvider ? '📋' : '✅', text: isJobProvider ? 'Welcome to Career 2.0!' : 'Start applying to opportunities', time: 'Get started' },
               { icon: '💬', text: 'Chat with your connections', time: 'Messages' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">

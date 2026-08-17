@@ -1,4 +1,4 @@
-# 🤲 SilverHands — AI-Powered Digital Livelihood Platform
+# 🚀 Career 2.0 — AI-Powered Digital Livelihood Platform
 
 > Empowering senior citizens and homemakers in India to earn meaningful income through their skills and wisdom.
 

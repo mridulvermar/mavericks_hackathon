@@ -43,7 +43,7 @@ export default function AIAssistant() {
     {
       id: 1,
       sender: 'ai',
-      text: `Namaste! 🙏 I am **SilverAI**, your friendly livelihood assistant on SilverHands.\n\nI am here to help senior citizens and homemakers find work, sell traditional food & craft products, estimate earnings, and stay safe. How can I help you today?`,
+      text: `Namaste! 🙏 I am **CareerAI**, your friendly livelihood assistant on Career 2.0.\n\nI am here to help senior citizens and homemakers find work, sell traditional food & craft products, estimate earnings, and stay safe. How can I help you today?`,
     },
   ])
   const [input, setInput] = useState('')
@@ -91,13 +91,13 @@ export default function AIAssistant() {
         ])
       }
     } catch (err) {
-      console.error('SilverAI assistant error:', err)
+      console.error('CareerAI assistant error:', err)
       setMessages((m) => [
         ...m,
         {
           id: String(Date.now() + 1),
           sender: 'ai',
-          text: `Namaste! 🙏 I am here to help you navigate SilverHands. Try exploring opportunities or listing services on the marketplace!`,
+          text: `Namaste! 🙏 I am here to help you navigate Career 2.0. Try exploring opportunities or listing services on the marketplace!`,
         },
       ])
     } finally {
@@ -136,7 +136,7 @@ export default function AIAssistant() {
             </div>
             <div>
               <h1 className="font-extrabold text-xl flex items-center gap-2">
-                SilverAI <span className="badge bg-white/20 text-white text-xs">Assistant</span>
+                CareerAI <span className="badge bg-white/20 text-white text-xs">Assistant</span>
               </h1>
               <p className="text-xs text-white/90 flex items-center gap-1 mt-0.5">
                 <Sparkles size={14} className="text-accent" /> Friendly Livelihood & Safety Companion
@@ -226,12 +226,12 @@ export default function AIAssistant() {
           <input
             type="text"
             className="input flex-1 text-base"
-            placeholder="Ask SilverAI anything (e.g. how much can I earn cooking?)..."
+            placeholder="Ask CareerAI anything (e.g. how much can I earn cooking?)..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             disabled={loading}
-            aria-label="Ask SilverAI assistant"
+            aria-label="Ask CareerAI assistant"
             id="ai-input"
           />
           <button
@@ -245,7 +245,7 @@ export default function AIAssistant() {
           </button>
         </div>
         <p className="text-xs text-muted text-center mt-2 max-w-2xl mx-auto">
-          SilverAI earnings figures are estimated. Always follow safety guidelines when meeting new clients.
+          CareerAI earnings figures are estimated. Always follow safety guidelines when meeting new clients.
         </p>
       </div>
     </div>

@@ -117,7 +117,7 @@ async function startServer() {
     await connectDB()
 
     httpServer.listen(PORT, () => {
-      console.log(`🤲 SilverHands Server running on port ${PORT}`)
+      console.log(`🚀 Career 2.0 Server running on port ${PORT}`)
       console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`)
       console.log(`   Client URL  : ${CLIENT_URL}`)
       console.log(`   Health check: http://localhost:${PORT}/api/health\n`)

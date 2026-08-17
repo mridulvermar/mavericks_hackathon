@@ -9,7 +9,7 @@ router.get('/', (req, res) => {
 
   res.json({
     success: true,
-    service: 'SilverHands API',
+    service: 'Career 2.0 API',
     version: '0.1.0',
     status: 'healthy',
     timestamp: new Date().toISOString(),

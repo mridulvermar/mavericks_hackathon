@@ -49,9 +49,13 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Logo Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🤲</div>
+          <img
+            src="/logo.png"
+            alt="Career 2.0 Logo"
+            className="w-20 h-20 rounded-2xl shadow-lg border-2 border-primary-200 object-cover mx-auto mb-3"
+          />
           <h1 className="text-3xl font-extrabold text-foreground">Welcome Back</h1>
-          <p className="text-muted mt-1 text-base">Sign in to your SilverHands account</p>
+          <p className="text-muted mt-1 text-base">Sign in to your Career 2.0 account</p>
         </div>
 
         <div className="card p-8 shadow-float">
@@ -117,7 +121,7 @@ export default function Login() {
 
           <div className="mt-6 text-center space-y-3">
             <Link to="/register" className="block text-primary font-semibold hover:underline text-base">
-              New to SilverHands? Register here →
+              New to Career 2.0? Register here →
             </Link>
           </div>
         </div>

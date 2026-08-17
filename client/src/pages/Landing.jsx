@@ -7,13 +7,17 @@ export default function Landing() {
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-background flex flex-col">
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center gap-8">
-        <div className="text-6xl mb-2" aria-hidden="true">🤲</div>
-        <h1 className="text-4xl font-extrabold text-foreground max-w-lg leading-tight">
-          Earn with Your<br />
-          <span className="text-primary">Wisdom & Skills</span>
+        <img
+          src="/logo.png"
+          alt="Career 2.0 Logo"
+          className="w-28 h-28 rounded-3xl shadow-xl border-2 border-primary-200 object-cover mx-auto"
+        />
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-foreground max-w-lg leading-tight">
+          Career 2.0<br />
+          <span className="text-primary">Earn with Your Wisdom</span>
         </h1>
-        <p className="text-lg text-muted max-w-sm leading-relaxed">
-          SilverHands connects senior citizens and homemakers with meaningful work — on your own time, from home.
+        <p className="text-lg text-muted max-w-md leading-relaxed">
+          Career 2.0 connects senior citizens and homemakers with meaningful work, teaching, crafts, and domestic services — on your own time, from home.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
