@@ -23,6 +23,7 @@ export default function PostJob() {
   const [successModal, setSuccessModal] = useState(false)
 
   const recognitionRef = useRef(null)
+  const baseDescriptionRef = useRef('')
 
   const startVoiceInput = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -34,6 +35,8 @@ export default function PostJob() {
     try {
       if (recognitionRef.current) recognitionRef.current.stop()
 
+      baseDescriptionRef.current = description.trim()
+
       const recognition = new SpeechRecognition()
       recognition.continuous = false
       recognition.interimResults = true
@@ -41,11 +44,25 @@ export default function PostJob() {
 
       recognition.onstart = () => setIsListening(true)
       recognition.onresult = (e) => {
-        let text = ''
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          text += e.results[i][0].transcript
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = 0; i < e.results.length; i++) {
+          const result = e.results[i]
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript + ' '
+          } else {
+            interimTranscript += result[0].transcript
+          }
         }
-        setDescription(prev => prev ? `${prev} ${text}` : text)
+
+        const currentSpeech = (finalTranscript + interimTranscript).trim()
+        const combined = baseDescriptionRef.current
+          ? `${baseDescriptionRef.current} ${currentSpeech}`.trim()
+          : currentSpeech
+
+        const clean = combined.replace(/\b(\w+)( \1\b)+/gi, '$1')
+        setDescription(clean)
       }
       recognition.onerror = () => setIsListening(false)
       recognition.onend = () => setIsListening(false)

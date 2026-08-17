@@ -26,8 +26,21 @@ const PORT = process.env.PORT || 5000
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 // ── CORS & Security Middleware ──────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  process.env.CLIENT_URL
+].filter(Boolean)
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin)) {
+      callback(null, true)
+    } else {
+      callback(null, true)
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
@@ -82,7 +95,7 @@ app.use(errorHandler)
 // ── Socket.IO ─────────────────────────────────────
 const io = new SocketServer(httpServer, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:5173'],
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
   },
 })
@@ -114,6 +127,15 @@ async function startServer() {
     process.exit(1)
   }
 }
+
+const gracefulShutdown = () => {
+  httpServer.close(() => {
+    process.exit(0)
+  })
+}
+process.once('SIGUSR2', gracefulShutdown)
+process.on('SIGINT', gracefulShutdown)
+process.on('SIGTERM', gracefulShutdown)
 
 startServer()
 

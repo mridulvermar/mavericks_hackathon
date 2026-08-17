@@ -37,10 +37,32 @@ export default function Chat() {
 
     socketRef.current.on('chat:message', (newMsg) => {
       setMessages((prevMsgs) => {
-        const existingIdx = prevMsgs.findIndex((m) => (m._id || m.id) === (newMsg._id || newMsg.id))
+        // Robust check to match existing message
+        const existingIdx = prevMsgs.findIndex((m) => {
+          if (newMsg.clientMsgId && (m.clientMsgId === newMsg.clientMsgId || m._id === newMsg.clientMsgId || m.id === newMsg.clientMsgId)) {
+            return true
+          }
+          if ((m._id && (m._id === newMsg._id || m._id === newMsg.id)) || (m.id && (m.id === newMsg._id || m.id === newMsg.id))) {
+            return true
+          }
+          // Match identical text from same sender sent within last 5 seconds
+          if ((m.senderId && m.senderId === newMsg.senderId) || (m.sender === 'me' && newMsg.senderId === userId)) {
+            if (m.text === newMsg.text) {
+              return true
+            }
+          }
+          return false
+        })
+
         if (existingIdx !== -1) {
           const updated = [...prevMsgs]
-          updated[existingIdx] = { ...updated[existingIdx], status: newMsg.status }
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            _id: newMsg._id || updated[existingIdx]._id,
+            id: newMsg._id || updated[existingIdx].id,
+            status: newMsg.status || 'delivered',
+            time: newMsg.timestamp || newMsg.time || updated[existingIdx].time,
+          }
           return updated
         }
         return [...prevMsgs, newMsg]
@@ -111,7 +133,19 @@ export default function Chat() {
         const res = await fetch(`${API_BASE_URL}/chat/conversations/${chatId}/messages`)
         const data = await res.json()
         if (data.success && data.data) {
-          setMessages(data.data)
+          // Deduplicate incoming list
+          const seen = new Set()
+          const uniqueList = []
+          for (const m of data.data) {
+            const idKey = String(m._id || m.id || '')
+            const contentKey = `${m.text}_${m.time || m.timestamp}`
+            if (!seen.has(idKey) && !seen.has(contentKey)) {
+              if (idKey) seen.add(idKey)
+              seen.add(contentKey)
+              uniqueList.push(m)
+            }
+          }
+          setMessages(uniqueList)
         }
       } catch (err) {
         console.error('Error fetching chat messages:', err)
@@ -134,11 +168,13 @@ export default function Chat() {
 
     const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
     const currentName = currentUser.name || 'Sunita Ji'
-    const currentId = currentUser._id || currentUser.id || 'me'
+    const currentId = currentUser._id || currentUser.id || 'u_user'
+    const tempId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
     const tempMsg = {
-      _id: String(Date.now()),
-      id: String(Date.now()),
+      _id: tempId,
+      id: tempId,
+      clientMsgId: tempId,
       conversationId: chatId,
       text: textToSend,
       senderId: currentId,
@@ -146,34 +182,45 @@ export default function Chat() {
       senderName: currentName,
       status: 'sent',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString(),
     }
 
+    // Optimistically add once to messages
     setMessages((prev) => [...prev, tempMsg])
 
-    // Broadcast via Socket.IO
-    if (socketRef.current) {
+    // Real-time broadcast via Socket.IO
+    if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('chat:message', {
+        clientMsgId: tempId,
         roomId: chatId,
         conversationId: chatId,
         text: textToSend,
         senderId: currentId,
         senderName: currentName,
       })
-    }
-
-    // HTTP Persistence Fallback
-    try {
-      await fetch(`${API_BASE_URL}/chat/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: chatId,
-          text: textToSend,
-          senderName: 'Sunita Ji',
-        }),
-      })
-    } catch (err) {
-      console.error('HTTP Send fallback error:', err)
+    } else {
+      // Fallback only if socket disconnected
+      try {
+        const res = await fetch(`${API_BASE_URL}/chat/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientMsgId: tempId,
+            conversationId: chatId,
+            text: textToSend,
+            senderName: currentName,
+            senderId: currentId,
+          }),
+        })
+        const data = await res.json()
+        if (data.success && data.data) {
+          setMessages((prev) =>
+            prev.map((m) => (m._id === tempId ? { ...m, ...data.data, sender: 'me' } : m))
+          )
+        }
+      } catch (err) {
+        console.error('HTTP Send fallback error:', err)
+      }
     }
   }
 

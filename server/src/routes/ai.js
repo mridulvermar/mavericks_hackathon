@@ -205,32 +205,299 @@ Your goals:
   }
 })
 
-// Mock AI Endpoints for Skill Discovery & Profile Generation
+// ── Intelligent Dynamic Keyword & Skill Discovery Engine ─────────────────────────────
+function extractSkillsNLP(text = '') {
+  const lower = text.toLowerCase()
+
+  // 1. Extract years of experience
+  let experienceYears = '15+ years'
+  const yearMatch = lower.match(/(\d{1,2})\s*(?:\+|plus)?\s*(?:years?|yrs?|saal|varusham)/i)
+  if (yearMatch && parseInt(yearMatch[1], 10) > 0) {
+    experienceYears = `${yearMatch[1]}+ years`
+  } else {
+    const sinceMatch = lower.match(/since\s*(19\d{2}|20\d{2})/i)
+    if (sinceMatch) {
+      const yrs = 2026 - parseInt(sinceMatch[1], 10)
+      if (yrs > 0) experienceYears = `${yrs}+ years`
+    }
+  }
+
+  // 2. Skill dictionary definitions with matching keywords
+  const SKILL_RULES = [
+    {
+      category: 'cooking',
+      name: 'Traditional Home Cooking',
+      icon: '🍳',
+      keywords: ['cook', 'cooking', 'recipe', 'food', 'meal', 'meals', 'kitchen', 'rasam', 'sambar', 'curry', 'roti', 'sabzi', 'dal', 'biryani', 'south indian', 'north indian', 'rajasthani', 'gujarati', 'bengali', 'kerala', 'maharashtrian', 'tiffin', 'breakfast', 'lunch', 'dinner'],
+      service: 'Authentic Traditional Home Cooking & Meal Preparation',
+      product: 'Homestyle Ready Meals & Daily Tiffin Service',
+    },
+    {
+      category: 'pickles',
+      name: 'Pickle & Preserve Making',
+      icon: '🫙',
+      keywords: ['pickle', 'pickles', 'achar', 'avakkai', 'oorugai', 'chutney', 'podi', 'masala', 'ghee', 'papad', 'vadam', 'preserve'],
+      service: 'Custom Heritage Recipe Pickle Preparation',
+      product: 'Artisanal Homemade Mango, Lemon & Garlic Pickles',
+    },
+    {
+      category: 'baking',
+      name: 'Home Baking & Confectionery',
+      icon: '🧁',
+      keywords: ['bake', 'baking', 'cake', 'cupcake', 'cookies', 'pastry', 'bread', 'dessert', 'sweets', 'mithai', 'halwa', 'laddu', 'mysore pak'],
+      service: 'Fresh Custom Birthday Cakes & Celebration Desserts',
+      product: 'Handmade Traditional Sweets & Festive Snacks',
+    },
+    {
+      category: 'tailoring',
+      name: 'Custom Tailoring & Fitting',
+      icon: '🧵',
+      keywords: ['stitch', 'stitching', 'tailor', 'tailoring', 'blouse', 'saree', 'salwar', 'kurti', 'fall', 'pico', 'alteration', 'fitting', 'hem', 'dressmaking', 'sewing', 'garment'],
+      service: 'Custom Saree Blouse Stitching & Fall/Pico Hemming',
+      product: 'Tailored Blouse Pieces & Handcrafted Potli Bags',
+    },
+    {
+      category: 'embroidery',
+      name: 'Aari, Zardozi & Embroidery Work',
+      icon: '✨',
+      keywords: ['embroidery', 'embroider', 'aari', 'zardozi', 'beadwork', 'thread work', 'maggam', 'mirror work', 'sequin', 'hand work'],
+      service: 'Bridal Designer Aari & Zardozi Embroidery Work',
+      product: 'Embroidered Dupattas & Custom Decorative Wall Hangings',
+    },
+    {
+      category: 'knitting',
+      name: 'Knitting & Crochet Crafting',
+      icon: '🧶',
+      keywords: ['knit', 'knitting', 'crochet', 'wool', 'sweater', 'muffler', 'macrame', 'yarn', 'baby blanket'],
+      service: 'Bespoke Hand-Knitted Sweaters & Baby Sets',
+      product: 'Handmade Crochet Bags, Doilies & Woolen Wear',
+    },
+    {
+      category: 'maths_tutoring',
+      name: 'Maths & Science Tutoring',
+      icon: '📐',
+      keywords: ['math', 'maths', 'mathematics', 'algebra', 'geometry', 'arithmetic', 'calculus', 'physics', 'chemistry', 'science', 'teach', 'tutor', 'tuition', 'class 10', 'class 12', 'school', 'student'],
+      service: '1-on-1 Concept Clarity & Board Exam Maths Tutoring',
+      product: 'Curated Study Notes & Quick-Revision Formula Sheets',
+    },
+    {
+      category: 'language_tutoring',
+      name: 'Language & Literature Teaching',
+      icon: '📚',
+      keywords: ['english', 'hindi', 'tamil', 'sanskrit', 'telugu', 'kannada', 'french', 'grammar', 'speaking', 'slokas', 'chanting', 'shloka', 'scripture', 'bhagavad gita'],
+      service: 'Conversational Language Tutoring & Stotra/Shloka Chanting',
+      product: 'Personalized Audio Guides for Shloka Pronunciation',
+    },
+    {
+      category: 'gardening',
+      name: 'Terrace Gardening & Plant Care',
+      icon: '🌿',
+      keywords: ['garden', 'gardening', 'plant', 'plants', 'bonsai', 'organic', 'compost', 'vegetables', 'flower', 'nursery', 'terrace garden'],
+      service: 'Home Terrace Garden Setup & Organic Plant Consultation',
+      product: 'Homemade Organic Fertilizer & Propagated Seedling Pots',
+    },
+    {
+      category: 'crafts',
+      name: 'Handicrafts & Upcycling',
+      icon: '🎨',
+      keywords: ['craft', 'crafts', 'handicraft', 'pottery', 'clay', 'painting', 'sketch', 'art', 'origami', 'quilling', 'diy', 'rangoli', 'kolam'],
+      service: 'Festive Decoration & Custom Handmade Artwork Creation',
+      product: 'Hand-painted Diyas, Traditional Artworks & Festive Decor',
+    },
+    {
+      category: 'childcare',
+      name: 'Child Care & Storytelling',
+      icon: '👶',
+      keywords: ['child', 'children', 'kid', 'kids', 'baby', 'babysit', 'storytelling', 'moral stories', 'grandparent care', 'activity'],
+      service: 'After-School Cultural Storytelling & Homework Companion',
+      product: 'Handwritten Illustrated Moral Story Books',
+    },
+    {
+      category: 'accounts',
+      name: 'Small Business Bookkeeping',
+      icon: '📊',
+      keywords: ['account', 'accounting', 'accounts', 'bookkeeping', 'tally', 'gst', 'tax', 'excel', 'ledger', 'billing', 'finance'],
+      service: 'Local Shop Bookkeeping & Monthly Billing Reconciliation',
+      product: 'Customized Excel Templates for Small Business Records',
+    },
+  ]
+
+  // 3. Match user text against rules with word boundaries
+  const matchedSkills = []
+  const suggestedServices = []
+  const suggestedProducts = []
+
+  for (const rule of SKILL_RULES) {
+    const hits = rule.keywords.filter(kw => {
+      // Escape special regex characters in keyword
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i')
+      return regex.test(lower)
+    })
+
+    if (hits.length > 0) {
+      matchedSkills.push({
+        icon: rule.icon,
+        name: rule.name,
+      })
+      suggestedServices.push(rule.service)
+      suggestedProducts.push(rule.product)
+    }
+  }
+
+  // Fallback if no specific keywords matched
+  if (matchedSkills.length === 0) {
+    matchedSkills.push(
+      { icon: '🌟', name: 'Household Management & Culinary Experience' },
+      { icon: '🤝', name: 'Community Mentorship & Support' }
+    )
+    suggestedServices.push('Personalized Home Services & Life Mentorship', 'Specialized Domestic Consultancy')
+    suggestedProducts.push('Handcrafted Home Goods & Family Recipes')
+  }
+
+  // 4. Recommendation text
+  const topNames = matchedSkills.slice(0, 3).map(s => s.name).join(' & ')
+  const recommendation = `Based on your ${experienceYears} of real-world knowledge in ${topNames}, you have high earning potential for local services and marketplace products on SilverHands.`
+
+  return {
+    skills: matchedSkills.slice(0, 4),
+    experienceYears,
+    suggestedServices: suggestedServices.slice(0, 3),
+    suggestedProducts: suggestedProducts.slice(0, 3),
+    recommendation,
+  }
+}
+
+function generateProfileNLP(description = '', skills = []) {
+  const nlp = extractSkillsNLP(description)
+  const skillNames = skills.length > 0 ? skills : nlp.skills.map(s => s.name)
+  const primarySkill = skillNames[0] || 'Experienced Specialist'
+  const secondarySkill = skillNames[1] || 'Community Mentor'
+
+  const headline = `${primarySkill} & ${secondarySkill} (${nlp.experienceYears})`
+  const about = `Namaste! 🙏 With over ${nlp.experienceYears} of authentic experience, I take pride in sharing my knowledge of ${skillNames.slice(0, 3).join(', ')}. I offer reliable, high-quality personalized services and handcrafted products tailored with care and dedication.`
+
+  const serviceDescriptions = nlp.suggestedServices.slice(0, 2).map((s, idx) => 
+    `${idx + 1}-on-1 ${s}`
+  )
+
+  return {
+    headline,
+    about,
+    skills: skillNames,
+    serviceDescriptions,
+  }
+}
+
+// ── Gemini & Dynamic AI Endpoints ──────────────────────────────────────────
+
 router.post('/discover-skills', optionalAuth, async (req, res, next) => {
-  res.json({
-    success: true,
-    source: 'mock-ai',
-    skills: [
-      { icon: '🍳', name: 'Cooking' },
-      { icon: '🧵', name: 'Tailoring & Embroidery' },
-    ],
-    experienceYears: '20+ years',
-    suggestedServices: ['Traditional South & North Indian Meals', 'Custom Blouse Stitching & Alterations'],
-    recommendation: 'Highly suitable for offering specialized home cooking classes and custom tailoring listings.',
-  })
+  try {
+    const description = (req.body.description || req.body.text || '').trim()
+    if (!description) {
+      return res.status(400).json({ success: false, message: 'Description is required for skill discovery.' })
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY
+
+    // Try Google Gemini API if key is available
+    if (apiKey) {
+      try {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai')
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+        const prompt = `Analyze this description of an Indian senior citizen or homemaker's life experience and extract their skills, years of experience, suggested services, and products.
+User Description: "${description}"
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "skills": [{"icon": "emoji", "name": "Skill Name"}],
+  "experienceYears": "25+ years",
+  "suggestedServices": ["Service 1", "Service 2"],
+  "suggestedProducts": ["Product 1", "Product 2"],
+  "recommendation": "Encouraging 1-2 sentence recommendation."
+}`
+
+        const result = await model.generateContent(prompt)
+        const rawText = result.response.text()
+        const cleanedJSON = rawText.replace(/```json\n?|```/g, '').trim()
+        const parsed = JSON.parse(cleanedJSON)
+
+        if (parsed.skills && Array.isArray(parsed.skills)) {
+          return res.json({
+            success: true,
+            source: 'gemini',
+            ...parsed,
+          })
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini discovery fallback to dynamic NLP engine:', geminiErr.message)
+      }
+    }
+
+    // Dynamic NLP Extraction Engine Fallback
+    const result = extractSkillsNLP(description)
+    return res.json({
+      success: true,
+      source: 'nlp-engine',
+      ...result,
+    })
+  } catch (err) {
+    next(err)
+  }
 })
 
 router.post('/generate-profile', optionalAuth, async (req, res, next) => {
-  res.json({
-    success: true,
-    source: 'mock-ai',
-    headline: 'Master Home Cook & Experienced Tailor',
-    about: 'Namaste! With over 20 years of experience, I provide authentic home-cooked culinary experiences and personalized saree blouse stitching.',
-    serviceDescriptions: [
-      '1-on-1 Cooking Masterclasses (Traditional Recipes)',
-      'Custom Designer Saree Blouse Stitching & Embroidery',
-    ],
-  })
+  try {
+    const { description = '', skills = [] } = req.body
+    const apiKey = process.env.GEMINI_API_KEY
+
+    if (apiKey) {
+      try {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai')
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+        const prompt = `Generate a warm, dignified, and professional profile for an Indian senior citizen/homemaker on SilverHands platform.
+Description: "${description}"
+Skills: ${JSON.stringify(skills)}
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "headline": "Professional Headline under 10 words",
+  "about": "Warm, respectful, 2-3 sentence bio starting with Namaste",
+  "skills": ["Skill1", "Skill2", "Skill3"],
+  "serviceDescriptions": ["Service offering 1", "Service offering 2"]
+}`
+
+        const result = await model.generateContent(prompt)
+        const rawText = result.response.text()
+        const cleanedJSON = rawText.replace(/```json\n?|```/g, '').trim()
+        const parsed = JSON.parse(cleanedJSON)
+
+        if (parsed.headline && parsed.about) {
+          return res.json({
+            success: true,
+            source: 'gemini',
+            ...parsed,
+          })
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini profile fallback to dynamic NLP engine:', geminiErr.message)
+      }
+    }
+
+    // Dynamic NLP Profile Generator Fallback
+    const profile = generateProfileNLP(description, skills)
+    return res.json({
+      success: true,
+      source: 'nlp-engine',
+      ...profile,
+    })
+  } catch (err) {
+    next(err)
+  }
 })
 
 export default router

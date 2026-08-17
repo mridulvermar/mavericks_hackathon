@@ -38,6 +38,7 @@ export default function AISkillDiscovery() {
   const [saveSuccess, setSaveSuccess] = useState(false)
 
   const recognitionRef = useRef(null)
+  const baseTextRef = useRef('')
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -60,6 +61,8 @@ export default function AISkillDiscovery() {
         recognitionRef.current.stop()
       }
 
+      baseTextRef.current = description.trim()
+
       const recognition = new SpeechRecognition()
       recognition.continuous = true
       recognition.interimResults = true
@@ -71,11 +74,26 @@ export default function AISkillDiscovery() {
       }
 
       recognition.onresult = (event) => {
-        let transcript = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i]
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript + ' '
+          } else {
+            interimTranscript += result[0].transcript
+          }
         }
-        setDescription(prev => prev ? `${prev} ${transcript}` : transcript)
+
+        const currentSpeech = (finalTranscript + interimTranscript).trim()
+        const combined = baseTextRef.current
+          ? `${baseTextRef.current} ${currentSpeech}`.trim()
+          : currentSpeech
+
+        // Deduplicate accidental repeated consecutive words from mic audio echo
+        const clean = combined.replace(/\b(\w+)( \1\b)+/gi, '$1')
+        setDescription(clean)
       }
 
       recognition.onerror = (event) => {

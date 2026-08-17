@@ -23,7 +23,7 @@ export const setupSocketIO = (io) => {
 
     // Send real-time chat message
     socket.on('chat:message', async (data) => {
-      const { roomId, conversationId, message, senderId, senderName, text } = data
+      const { clientMsgId, roomId, conversationId, message, senderId, senderName, text } = data
       const targetRoom = roomId || conversationId || 'c1'
 
       // Check if recipient is active in the same chat room
@@ -32,8 +32,9 @@ export const setupSocketIO = (io) => {
       const computedStatus = roomSize > 1 ? 'read' : 'delivered'
 
       const msgData = {
-        _id: String(Date.now()),
-        id: String(Date.now()),
+        _id: clientMsgId || String(Date.now()),
+        id: clientMsgId || String(Date.now()),
+        clientMsgId: clientMsgId || String(Date.now()),
         conversationId: targetRoom,
         text: text || message?.text || '',
         senderId: senderId,
@@ -47,7 +48,7 @@ export const setupSocketIO = (io) => {
       // Persist in MongoDB if active
       if (mongoose.connection.readyState === 1) {
         try {
-          await Message.create({
+          const created = await Message.create({
             conversationId: targetRoom,
             senderId,
             senderName: msgData.senderName,
@@ -55,12 +56,15 @@ export const setupSocketIO = (io) => {
             status: msgData.status,
             timestamp: msgData.timestamp,
           })
+          if (created) {
+            msgData._id = String(created._id)
+          }
         } catch (err) {
           console.error('Error saving socket message to DB:', err)
         }
       }
 
-      // Broadcast message to everyone in the room
+      // Broadcast message to everyone in the room (client will match by clientMsgId)
       io.to(`chat:${targetRoom}`).emit('chat:message', msgData)
     })
 

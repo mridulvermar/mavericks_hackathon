@@ -84,7 +84,20 @@ router.get('/conversations/:id/messages', optionalAuth, async (req, res) => {
       messages = mockMessagesStore[id] || []
     }
 
-    res.json({ success: true, data: messages })
+    // Deduplicate any repeated messages
+    const seen = new Set()
+    const unique = []
+    for (const m of messages) {
+      const idKey = String(m._id || m.id || '')
+      const contentKey = `${m.conversationId}_${m.senderId || m.senderName}_${m.text}_${m.timestamp || m.time}`
+      if (!seen.has(idKey) && !seen.has(contentKey)) {
+        if (idKey) seen.add(idKey)
+        seen.add(contentKey)
+        unique.push(m)
+      }
+    }
+
+    res.json({ success: true, data: unique })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch messages.' })
   }
@@ -93,31 +106,37 @@ router.get('/conversations/:id/messages', optionalAuth, async (req, res) => {
 // ── POST /api/chat/messages (HTTP fallback send) ────────────────────
 router.post('/messages', optionalAuth, async (req, res) => {
   try {
-    const { conversationId, text, senderName } = req.body
+    const { conversationId, text, senderName, senderId, clientMsgId } = req.body
     if (!text || !text.trim()) {
       return res.status(400).json({ success: false, message: 'Message text is required.' })
     }
 
     const roomId = conversationId || 'c1'
     const newMsg = {
-      _id: String(Date.now()),
-      id: String(Date.now()),
+      _id: clientMsgId || String(Date.now()),
+      id: clientMsgId || String(Date.now()),
+      clientMsgId,
       conversationId: roomId,
       text: text.trim(),
       sender: 'me',
+      senderId: senderId || 'me',
       senderName: senderName || 'Lakshmi Ammal',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: new Date().toISOString(),
     }
 
     if (mongoose.connection.readyState === 1) {
-      await Message.create({
+      const created = await Message.create({
         conversationId: roomId,
+        senderId: newMsg.senderId,
         senderName: newMsg.senderName,
         text: newMsg.text,
         timestamp: newMsg.time,
         sender: 'me',
       })
+      if (created) {
+        newMsg._id = String(created._id)
+      }
     }
 
     if (!mockMessagesStore[roomId]) {
