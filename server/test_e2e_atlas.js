@@ -6,7 +6,7 @@ const API_BASE = 'http://localhost:5050/api'
 
 async function runE2ETest() {
   console.log('====================================================')
-  console.log('🧪 SILVERHANDS END-TO-END MONGO DB ATLAS TEST')
+  console.log('🧪 CAREER 2.0 END-TO-END MONGO DB ATLAS TEST')
   console.log('====================================================\n')
 
   const testPhone = `9${Math.floor(100000000 + Math.random() * 899999999)}`
@@ -25,7 +25,7 @@ async function runE2ETest() {
     name: testName,
     phone: testPhone,
     password: testPassword,
-    role: 'provider',
+    service: 'Career 2.0 API',
     providerType: 'senior_citizen',
   })
   console.log('   API Response:', regRes.data.message)
@@ -36,7 +36,7 @@ async function runE2ETest() {
   console.log('🔹 VERIFYING DOCUMENT IN MONGO DB ATLAS DIRECTLY...')
   await mongoose.connect(process.env.MONGODB_URI)
   const dbUser = await mongoose.connection.collection('users').findOne({ phone: testPhone })
-  console.log('   Atlas DB Query Result:', dbUser ? `Found User: ${dbUser.name} (_id: ${dbUser._id})` : 'NOT FOUND')
+  console.log('🤲 Career 2.0 Automated Integration Test Suite'), dbUser ? `Found User: ${dbUser.name} (_id: ${dbUser._id})` : 'NOT FOUND')
   if (!dbUser) {
     throw new Error('❌ FAIL: User was not persisted to MongoDB Atlas collection!')
   }

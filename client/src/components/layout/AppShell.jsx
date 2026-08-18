@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom'
+import { t } from '../../utils/translator.js'
 import {
   Home,
   Briefcase,
@@ -19,29 +20,15 @@ import {
 import authAPI from '../../api/auth'
 import { API_BASE_URL } from '../../api/axios'
 
-const navItems = [
-  { to: '/home',          label: 'Home',          icon: Home },
-  { to: '/opportunities', label: 'Opportunities',  icon: Briefcase },
-  { to: '/marketplace',   label: 'Marketplace',    icon: ShoppingBag },
-  { to: '/bookings',      label: 'Bookings',       icon: Calendar },
-  { to: '/profile',       label: 'Profile',        icon: User },
-]
 
-const sidebarExtra = [
-  { to: '/assistant', label: 'AI Assistant', icon: Bot },
-  { to: '/chat',      label: 'Messages',     icon: MessageSquare },
-  { to: '/earnings',  label: 'Earnings',     icon: TrendingUp },
-  { to: '/skills',    label: 'My Skills',    icon: Zap },
-  { to: '/settings',  label: 'Settings',     icon: SettingsIcon },
-]
 
-function NavItem({ to, label, icon: Icon, onClick, collapsed }) {
+function NavItem({ to, label, icon: Icon, onClick, collapsed, badgeCount }) {
   return (
     <NavLink
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 min-h-touch font-medium text-base
+        `flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-150 min-h-touch font-medium text-base
          ${isActive
            ? 'bg-primary-100 text-primary font-semibold'
            : 'text-foreground hover:bg-primary-50 hover:text-primary'
@@ -51,8 +38,15 @@ function NavItem({ to, label, icon: Icon, onClick, collapsed }) {
       }
       aria-label={label}
     >
-      <Icon size={24} strokeWidth={2} className="shrink-0" />
-      {!collapsed && <span>{label}</span>}
+      <div className="flex items-center gap-3">
+        <Icon size={24} strokeWidth={2} className="shrink-0" />
+        {!collapsed && <span>{label}</span>}
+      </div>
+      {badgeCount > 0 && (
+        <span className="bg-accent text-white text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 shadow-xs">
+          {badgeCount}
+        </span>
+      )}
     </NavLink>
   )
 }
@@ -64,19 +58,34 @@ export default function AppShell() {
   const navigate = useNavigate()
 
   const storedUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const currentLang = storedUser.preferredLanguage || 'English'
   const isJobProvider = storedUser.role === 'job_provider' || storedUser.role === 'customer'
 
   const mainNavItems = isJobProvider
     ? [
-        { to: '/home', label: 'Home', icon: Home },
-        { to: '/my-postings', label: 'My Postings', icon: Briefcase },
-        { to: '/marketplace', label: 'Services', icon: ShoppingBag },
-        { to: '/bookings', label: 'Bookings', icon: Calendar },
-        { to: '/profile', label: 'Profile', icon: User },
+        { to: '/home', label: t('Home', currentLang), icon: Home },
+        { to: '/my-postings', label: t('My Postings', currentLang), icon: Briefcase },
+        { to: '/marketplace', label: t('Services', currentLang), icon: ShoppingBag },
+        { to: '/bookings', label: t('Bookings', currentLang), icon: Calendar },
+        { to: '/profile', label: t('Profile', currentLang), icon: User },
       ]
-    : navItems
+    : [
+        { to: '/home', label: t('Home', currentLang), icon: Home },
+        { to: '/opportunities', label: t('Opportunities', currentLang), icon: Briefcase },
+        { to: '/marketplace', label: t('Marketplace', currentLang), icon: ShoppingBag },
+        { to: '/bookings', label: t('Bookings', currentLang), icon: Calendar },
+        { to: '/profile', label: t('Profile', currentLang), icon: User },
+      ]
 
-  const filteredTools = sidebarExtra.filter(item => {
+  const sidebarTools = [
+    { to: '/assistant', label: t('AI Assistant', currentLang), icon: Bot },
+    { to: '/chat',      label: t('Messages', currentLang),     icon: MessageSquare },
+    { to: '/earnings',  label: t('Earnings', currentLang),     icon: TrendingUp },
+    { to: '/skills',    label: t('My Skills', currentLang),    icon: Zap },
+    { to: '/settings',  label: t('Settings', currentLang),     icon: SettingsIcon },
+  ]
+
+  const filteredTools = sidebarTools.filter(item => {
     if (isJobProvider) {
       return item.to !== '/earnings' && item.to !== '/skills'
     }
@@ -100,6 +109,10 @@ export default function AppShell() {
       }
     }
     fetchNotifs()
+    
+    // Poll notifications every 4 seconds to catch new messages in real-time
+    const interval = setInterval(fetchNotifs, 4000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleLogout = async () => {
@@ -118,7 +131,7 @@ export default function AppShell() {
       </a>
 
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white border-r border-border fixed top-0 left-0 z-30 shadow-card">
+      <aside className="hidden lg:flex flex-col w-64 h-screen bg-white border-r border-border fixed top-0 left-0 z-30 shadow-card">
         {/* Logo — semantic button */}
         <button
           className="flex items-center gap-3 px-5 py-4 border-b border-border cursor-pointer hover:bg-primary-50 transition-colors text-left w-full"
@@ -138,28 +151,31 @@ export default function AppShell() {
 
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main navigation">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Main</p>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">{t('Main', currentLang)}</p>
           {mainNavItems.map(item => (
             <NavItem key={item.to} {...item} />
           ))}
 
           <div className="border-t border-border my-3" />
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Tools</p>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">{t('Tools', currentLang)}</p>
           {filteredTools.map(item => (
-            <NavItem key={item.to} {...item} />
+            <NavItem
+              key={item.to}
+              {...item}
+              badgeCount={item.to === '/chat' ? notifications.filter(n => n.type === 'chat' && !n.read).length : 0}
+            />
           ))}
         </nav>
 
         {/* User Footer & Logout */}
         <div className="px-3 pb-4 border-t border-border pt-3 space-y-1">
-          <NavItem to="/settings" label="Settings" icon={User} />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium text-base transition-all min-h-touch"
             id="btn-logout-desktop"
           >
             <LogOut size={24} className="shrink-0" />
-            <span>Sign Out</span>
+            <span>{t('Sign Out', currentLang)}</span>
           </button>
         </div>
       </aside>
@@ -175,13 +191,13 @@ export default function AppShell() {
 
       {/* ── Mobile Drawer ── */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 bg-white z-50 shadow-float transform transition-transform duration-300 lg:hidden
+        className={`fixed top-0 left-0 h-screen w-72 bg-white z-50 shadow-float transform transition-transform duration-300 lg:hidden flex flex-col
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
         role="dialog"
         aria-label="Navigation menu"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
@@ -202,18 +218,22 @@ export default function AppShell() {
           </button>
         </div>
 
-        <nav className="px-3 py-4 space-y-1 overflow-y-auto h-full pb-28" aria-label="Mobile navigation">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Main</p>
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto pb-10" aria-label="Mobile navigation">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">{t('Main', currentLang)}</p>
           {mainNavItems.map(item => (
             <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
           ))}
           <div className="border-t border-border my-3" />
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">Tools</p>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-4 mb-2">{t('Tools', currentLang)}</p>
           {filteredTools.map(item => (
-            <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
+            <NavItem
+              key={item.to}
+              {...item}
+              onClick={() => setSidebarOpen(false)}
+              badgeCount={item.to === '/chat' ? notifications.filter(n => n.type === 'chat' && !n.read).length : 0}
+            />
           ))}
           <div className="border-t border-border my-3" />
-          <NavItem to="/settings" label="Settings" icon={User} onClick={() => setSidebarOpen(false)} />
           <button
             onClick={() => {
               setSidebarOpen(false)
@@ -223,7 +243,7 @@ export default function AppShell() {
             id="btn-logout-mobile"
           >
             <LogOut size={24} className="shrink-0" />
-            <span>Sign Out</span>
+            <span>{t('Sign Out', currentLang)}</span>
           </button>
         </nav>
       </div>
@@ -254,7 +274,9 @@ export default function AppShell() {
             id="btn-nav-messages-header"
           >
             <MessageSquare size={24} />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" aria-hidden="true" />
+            {notifications.some(n => n.type === 'chat' && !n.read) && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white animate-pulse" aria-hidden="true" />
+            )}
           </button>
         </header>
 
@@ -269,13 +291,16 @@ export default function AppShell() {
         className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-border shadow-float"
         aria-label="Bottom navigation"
       >
-        <div className="flex items-center justify-around px-2 py-2">
+        <div
+          className="flex items-center gap-1 px-2 py-2 overflow-x-auto scrollbar-none"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {mainNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl min-h-touch min-w-touch flex-1 transition-all duration-150
+                `flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl min-h-touch min-w-[72px] flex-1 shrink-0 transition-all duration-150
                  ${isActive ? 'text-primary' : 'text-muted hover:text-primary'}`
               }
               aria-label={label}

@@ -17,7 +17,6 @@ import aiRouter      from './routes/ai.js'
 import productsRouter from './routes/products.js'
 import earningsRouter from './routes/earnings.js'
 import notificationsRouter from './routes/notifications.js'
-import reportsRouter from './routes/reports.js'
 import { setupSocketIO } from './socket/index.js'
 
 const app  = express()
@@ -26,29 +25,13 @@ const PORT = process.env.PORT || 5000
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 // ── CORS & Security Middleware ──────────────────
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
-  process.env.CLIENT_URL
-].filter(Boolean)
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin)) {
-      callback(null, true)
-    } else {
-      callback(null, true)
-    }
-  },
+app.use(cors({
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
-}
-
-app.use(cors(corsOptions))
-app.options('*', cors(corsOptions))
-app.options(/(.*)/, cors(corsOptions))
+}))
+app.options('*', cors())
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -71,7 +54,6 @@ app.use('/api/products',      productsRouter)
 app.use('/api/bookings',      bookingRouter)
 app.use('/api/earnings',      earningsRouter)
 app.use('/api/notifications', notificationsRouter)
-app.use('/api/reports',       reportsRouter)
 app.use('/api/chat',          chatRouter)
 app.use('/api/ai',            aiRouter)
 
@@ -89,7 +71,7 @@ app.use(errorHandler)
 // ── Socket.IO ─────────────────────────────────────
 const io = new SocketServer(httpServer, {
   cors: {
-    origin: (origin, callback) => callback(null, true),
+    origin: [CLIENT_URL, 'http://localhost:5173'],
     credentials: true,
   },
 })
@@ -121,15 +103,6 @@ async function startServer() {
     process.exit(1)
   }
 }
-
-const gracefulShutdown = () => {
-  httpServer.close(() => {
-    process.exit(0)
-  })
-}
-process.once('SIGUSR2', gracefulShutdown)
-process.on('SIGINT', gracefulShutdown)
-process.on('SIGTERM', gracefulShutdown)
 
 startServer()
 

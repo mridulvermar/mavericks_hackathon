@@ -7,6 +7,7 @@ import Booking from '../models/Booking.js'
 import { mockBookings } from './bookings.js'
 import { scoreOpportunity } from '../utils/matching.js'
 import { demoOpportunities } from '../seed.js'
+import { sendNotification } from './notifications.js'
 
 const router = Router()
 
@@ -263,6 +264,35 @@ router.post('/', authenticate, authorize('job_provider', 'admin'), async (req, r
       const newId = `opp_${Date.now()}`
       createdOpp = { _id: newId, id: newId, ...postingData, createdAt: new Date().toISOString() }
       mockCustomerPostings.unshift(createdOpp)
+    }
+
+    // Send notifications to all job seekers (role = 'provider')
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const seekers = await User.find({ role: 'provider' }).select('_id')
+        for (const seeker of seekers) {
+          sendNotification({
+            userId: seeker._id,
+            title: 'New Opportunity Posted 💼',
+            message: `A new opportunity "${title}" in "${category}" was just posted!`,
+            type: 'system',
+            link: '/opportunities'
+          }).catch(err => console.error('Error sending seeker notification:', err))
+        }
+      } else {
+        const mockSeekers = ['u_provider']
+        for (const seekerId of mockSeekers) {
+          sendNotification({
+            userId: seekerId,
+            title: 'New Opportunity Posted 💼',
+            message: `A new opportunity "${title}" in "${category}" was just posted!`,
+            type: 'system',
+            link: '/opportunities'
+          }).catch(err => console.error('Error sending seeker mock notification:', err))
+        }
+      }
+    } catch (err) {
+      console.error('Error creating new opportunity notifications:', err)
     }
 
     res.status(201).json({

@@ -31,6 +31,15 @@ const ProtectedRoute = ({ children }) => {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const textSize = localStorage.getItem('sh_text_size') || 'Normal'
+    const root = document.documentElement
+    root.classList.remove('text-size-normal', 'text-size-medium', 'text-size-large')
+    if (textSize === 'Medium') root.classList.add('text-size-medium')
+    else if (textSize === 'Large') root.classList.add('text-size-large')
+    else root.classList.add('text-size-normal')
+  }, [])
+
   return (
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>

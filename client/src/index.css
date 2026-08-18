@@ -21,6 +21,16 @@
     overflow-x: hidden;       /* Prevent horizontal scroll at 360px */
   }
 
+  html.text-size-normal {
+    font-size: 19px !important;
+  }
+  html.text-size-medium {
+    font-size: 24px !important;
+  }
+  html.text-size-large {
+    font-size: 29px !important;
+  }
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: #faf8f3;
@@ -151,6 +161,10 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #c8c1b0; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #a89e8c; }
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
 
 /* ── Animations ── */
 @keyframes fadeIn {

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Message from '../models/Message.js'
 import { optionalAuth } from '../middleware/auth.js'
+import { sendNotification } from './notifications.js'
 
 const router = Router()
 
@@ -209,6 +210,16 @@ router.post('/messages', optionalAuth, async (req, res) => {
         newMsg._id = String(created._id)
         newMsg.id = String(created._id)
       }
+    }
+
+    if (newMsg.recipientId) {
+      sendNotification({
+        userId: newMsg.recipientId,
+        title: `New Message from ${newMsg.senderName}`,
+        message: newMsg.text,
+        type: 'chat',
+        link: '/chat'
+      }).catch(err => console.error('Error sending message notification:', err))
     }
 
     inMemoryMessages.push(newMsg)

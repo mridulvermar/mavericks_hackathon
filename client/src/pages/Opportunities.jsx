@@ -3,20 +3,28 @@ import { useNavigate } from 'react-router-dom'
 import { MapPin, Clock, IndianRupee, ChevronRight, Search, Sparkles, AlertCircle, MessageSquare } from 'lucide-react'
 
 import { API_BASE_URL } from '../api/axios'
+import { t } from '../utils/translator.js'
 
 const categories = ['All', 'Cooking', 'Tailoring', 'Handicrafts', 'Teaching', 'Care', 'Data Entry']
 
 export default function Opportunities() {
   const navigate = useNavigate()
   const [opportunities, setOpportunities] = useState([])
+  const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const currentLang = user.preferredLanguage || 'English'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
 
-  const fetchOpportunities = async () => {
-    setLoading(true)
-    setError(null)
+  const prevOppsRef = React.useRef([])
+  const [newOppNotification, setNewOppNotification] = useState(null)
+
+  const fetchOpportunities = async (isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const token = localStorage.getItem('sh_token')
       const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
@@ -30,20 +38,44 @@ export default function Opportunities() {
       const res = await fetch(url, { headers })
       const data = await res.json()
       if (data.success) {
-        setOpportunities(data.data || [])
+        const freshList = data.data || []
+        
+        // Check for new opportunities only if it's not the initial empty load
+        if (prevOppsRef.current.length > 0) {
+          const prevIds = new Set(prevOppsRef.current.map(o => String(o._id || o.id)))
+          const newlyAdded = freshList.find(o => !prevIds.has(String(o._id || o.id)))
+          if (newlyAdded) {
+            setNewOppNotification({
+              id: newlyAdded._id || newlyAdded.id,
+              title: newlyAdded.title,
+              category: newlyAdded.category,
+              pay: newlyAdded.pay
+            })
+          }
+        }
+        
+        prevOppsRef.current = freshList
+        setOpportunities(freshList)
       } else {
-        setError(data.message || 'Failed to load opportunities.')
+        if (!isSilent) setError(data.message || 'Failed to load opportunities.')
       }
     } catch (err) {
       console.error('Fetch error:', err)
-      setError('Unable to connect to server. Showing available data.')
+      if (!isSilent) setError('Unable to connect to server. Showing available data.')
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchOpportunities()
+
+    // Background poll every 5 seconds to automatically discover new postings
+    const pollInterval = setInterval(() => {
+      fetchOpportunities(true)
+    }, 5000)
+
+    return () => clearInterval(pollInterval)
   }, [activeCategory])
 
   const handleSearchSubmit = (e) => {
@@ -63,10 +95,44 @@ export default function Opportunities() {
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Find Opportunities 💼</h1>
-          <p className="text-muted text-sm mt-0.5">Matched for your wisdom, skills, and location</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('Find Opportunities 💼', currentLang)}</h1>
+          <p className="text-muted text-sm mt-0.5">{t('Matched for your wisdom, skills, and location', currentLang)}</p>
         </div>
       </div>
+
+      {/* New Opportunity Banner Notification */}
+      {newOppNotification && (
+        <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 text-emerald-950 flex items-start justify-between gap-3 shadow-md animate-fadeIn" id="new-opp-banner">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl mt-0.5">🔔</span>
+            <div>
+              <p className="font-extrabold text-xs text-emerald-800 uppercase tracking-wider">New Opportunity Available!</p>
+              <p className="font-bold text-lg mt-0.5">{newOppNotification.title}</p>
+              <p className="text-sm opacity-90 mt-1">
+                Category: <strong>{newOppNotification.category}</strong> | Pay: <strong>{newOppNotification.pay}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 shrink-0">
+            <button
+              onClick={() => {
+                const id = newOppNotification.id
+                setNewOppNotification(null)
+                navigate(`/opportunities/${id}`)
+              }}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer text-center"
+            >
+              View Job
+            </button>
+            <button
+              onClick={() => setNewOppNotification(null)}
+              className="text-xs text-gray-500 hover:text-gray-700 font-semibold underline text-center cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <form onSubmit={handleSearchSubmit} className="relative">
@@ -74,7 +140,7 @@ export default function Opportunities() {
         <input
           type="text"
           className="input pl-12 text-lg"
-          placeholder="Search opportunities (e.g. Cooking, Teaching, Chennai)..."
+          placeholder={`${t('Search opportunities', currentLang)}...`}
           value={search}
           onChange={e => setSearch(e.target.value)}
           aria-label="Search opportunities"
@@ -88,18 +154,18 @@ export default function Opportunities() {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2.5 rounded-xl border-2 font-medium whitespace-nowrap min-h-touch transition-all
+            className={`px-4 py-2.5 rounded-xl border-2 font-medium whitespace-nowrap min-h-touch transition-all shrink-0
               ${activeCategory === cat ? 'border-primary bg-primary text-white' : 'border-border text-foreground hover:border-primary-300'}`}
             id={`filter-${cat.toLowerCase().replace(/\s+/g, '-')}`}
           >
-            {cat}
+            {t(cat, currentLang)}
           </button>
         ))}
       </div>
 
       {/* Results count & status */}
       <div className="flex items-center justify-between text-sm text-muted">
-        <span>{filtered.length} opportunities found</span>
+        <span>{filtered.length} {t('opportunities found', currentLang)}</span>
         {loading && <span className="text-primary animate-pulse">Loading latest matches...</span>}
       </div>
 
@@ -223,14 +289,14 @@ export default function Opportunities() {
                       className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1 text-primary border-primary/30 hover:bg-primary-50"
                       id={`chat-opp-${oppId}`}
                     >
-                      <MessageSquare size={14} /> Inquire
+                      <MessageSquare size={14} /> {t('Inquire', currentLang)}
                     </button>
                     <button
                       onClick={() => navigate(`/opportunities/${oppId}`)}
                       className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1"
                       id={`view-opp-${oppId}`}
                     >
-                      View <ChevronRight size={14} />
+                      {t('View', currentLang)} <ChevronRight size={14} />
                     </button>
                   </div>
                 </div>

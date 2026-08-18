@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Briefcase, ShoppingBag, Bot, Star, Bell, ChevronRight, Sparkles, MapPin, IndianRupee, PlusCircle, Search, UserCheck, MessageSquare } from 'lucide-react'
 
 import { api, API_BASE_URL } from '../api/axios'
+import { t } from '../utils/translator.js'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -13,18 +14,33 @@ export default function Dashboard() {
 
   const [recentActivity, setRecentActivity] = useState([])
   const [statsData, setStatsData] = useState(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
   const isJobProvider = user.role === 'job_provider' || user.role === 'customer'
   const userName = user.name || (isJobProvider ? 'Anand Kumar' : 'Sunita Ji')
 
   useEffect(() => {
-    const fetchData = async () => {
-      setFetchError(false)
-      setLoading(true)
+    const fetchData = async (isSilent = false) => {
+      if (!isSilent) {
+        setFetchError(false)
+        setLoading(true)
+      }
       const token = localStorage.getItem('sh_token')
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       try {
+        // Fetch unread messages count
+        try {
+          const convsRes = await fetch(`${API_BASE_URL}/chat/conversations?userId=${encodeURIComponent(user._id || user.id || '')}`, { headers })
+          const convsData = await convsRes.json()
+          if (convsData.success && Array.isArray(convsData.data)) {
+            const totalUnread = convsData.data.reduce((sum, c) => sum + (c.unread || 0), 0)
+            setUnreadCount(totalUnread)
+          }
+        } catch (err) {
+          // ignore
+        }
+
         if (isJobProvider) {
           // Customer home: featured products + postings count
           const [productsRes, postingsRes] = await Promise.all([
@@ -65,12 +81,14 @@ export default function Dashboard() {
         }
       } catch (err) {
         console.error('Error fetching dashboard recommendations:', err)
-        setFetchError(true)
+        if (!isSilent) setFetchError(true)
       } finally {
-        setLoading(false)
+        if (!isSilent) setLoading(false)
       }
     }
     fetchData()
+    const interval = setInterval(() => fetchData(true), 5000)
+    return () => clearInterval(interval)
   }, [isJobProvider])
 
   // Job Provider Actions vs Provider Actions
@@ -102,6 +120,7 @@ export default function Dashboard() {
     { label: 'Profile Views', value: '—', icon: '👁️', color: 'bg-purple-50 text-purple-700' },
   ]
 
+  const currentLang = user.preferredLanguage || 'English'
   const actionsToRender = isJobProvider ? customerQuickActions : providerQuickActions
   const statsToRender = isJobProvider ? customerStats : providerStats
 
@@ -111,10 +130,10 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {isJobProvider ? `Welcome Back, ${userName} 👋` : `Good Morning, ${userName} 🙏`}
+            {isJobProvider ? `${t('Welcome Back', currentLang)}, ${userName} 👋` : `${t('Good Morning', currentLang)}, ${userName} 🙏`}
           </h1>
           <p className="text-muted text-base mt-1">
-            {isJobProvider ? 'What would you like to request or find today?' : "Here's what's happening today"}
+            {isJobProvider ? t('What would you like to request or find today?', currentLang) : t("Here's what's happening today", currentLang)}
           </p>
         </div>
         <button
@@ -124,7 +143,9 @@ export default function Dashboard() {
           id="btn-dashboard-messages"
         >
           <MessageSquare size={24} />
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white animate-pulse" />
+          )}
         </button>
       </div>
 
@@ -134,15 +155,15 @@ export default function Dashboard() {
           <div key={s.label} className={`card flex flex-col gap-1 ${s.color}`}>
             <span className="text-2xl">{s.icon}</span>
             <p className="text-2xl font-bold">{s.value}</p>
-            <p className="text-sm font-medium leading-tight">{s.label}</p>
-            {s.note && <p className="text-xs opacity-70">{s.note}</p>}
+            <p className="text-sm font-medium leading-tight">{t(s.label, currentLang)}</p>
+            {s.note && <p className="text-xs opacity-70">{t(s.note, currentLang)}</p>}
           </div>
         ))}
       </div>
 
       {/* Quick actions */}
       <div>
-        <h2 className="section-title">What would you like to do?</h2>
+        <h2 className="section-title">{t('What would you like to do?', currentLang)}</h2>
         <div className="grid grid-cols-2 gap-3">
           {actionsToRender.map(a => (
             <button
@@ -152,7 +173,7 @@ export default function Dashboard() {
               id={`quick-${a.label.toLowerCase().replace(/\s+/g, '-')}`}
             >
               <a.icon size={28} />
-              <span className="font-semibold text-lg">{a.label}</span>
+              <span className="font-semibold text-lg">{t(a.label, currentLang)}</span>
             </button>
           ))}
         </div>
@@ -183,13 +204,13 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <h2 className="section-title mb-0 flex items-center gap-2">
             <Sparkles size={20} className="text-primary" />
-            {isJobProvider ? 'Featured Senior Specialists Near You' : 'Recommended Opportunities for You'}
+            {isJobProvider ? t('Featured Senior Specialists Near You', currentLang) : t('Recommended Opportunities for You', currentLang)}
           </h2>
           <button
             onClick={() => navigate(isJobProvider ? '/marketplace' : '/opportunities')}
             className="text-primary font-bold text-sm hover:underline flex items-center gap-0.5"
           >
-            See All <ChevronRight size={16} />
+            {t('See All', currentLang)} <ChevronRight size={16} />
           </button>
         </div>
 
@@ -304,7 +325,7 @@ export default function Dashboard() {
 
       {/* Recent activity */}
       <div>
-        <h2 className="section-title">Recent Activity</h2>
+        <h2 className="section-title">{t('Recent Activity', currentLang)}</h2>
         <div className="card divide-y divide-border">
           {recentActivity.length > 0 ? (
             recentActivity.map((item, i) => (

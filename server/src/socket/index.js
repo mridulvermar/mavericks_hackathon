@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import Message from '../models/Message.js'
 import { inMemoryMessages } from '../routes/chat.js'
+import { sendNotification } from '../routes/notifications.js'
 
 const connectedUsers = new Map() // userId → socketId
 
@@ -93,6 +94,16 @@ export const setupSocketIO = (io) => {
         } catch (err) {
           console.error('Error saving socket message to DB:', err)
         }
+      }
+
+      if (msgData.recipientId) {
+        sendNotification({
+          userId: msgData.recipientId,
+          title: `New Message from ${msgData.senderName}`,
+          message: msgData.text,
+          type: 'chat',
+          link: '/chat'
+        }).catch(err => console.error('Error sending message notification:', err))
       }
 
       inMemoryMessages.push(msgData)

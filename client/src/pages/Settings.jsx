@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { Bell, Globe, LogOut, ShieldCheck, CheckCircle2, AlertCircle, Trash2, FileText, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/axios'
+import { t } from '../utils/translator.js'
 
 const languagesList = ['English', 'தமிழ் (Tamil)', 'हिंदी (Hindi)', 'मराठी (Marathi)', 'తెలుగు (Telugu)']
 
 export default function Settings() {
   const navigate = useNavigate()
   const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('sh_user') || '{}'))
-
-  // 1. Language Preference
-  const [selectedLang, setSelectedLang] = useState(currentUser.preferredLanguage || 'English')
+  const [selectedLang, setSelectedLang] = useState(() => {
+    return localStorage.getItem('sh_language') || currentUser.preferredLanguage || 'English'
+  })
   const [langMsg, setLangMsg] = useState(null)
 
   // 2. Text Size (Persisted in localStorage & applied to <html> element)
@@ -33,16 +34,25 @@ export default function Settings() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        console.log('[DEBUG] Settings fetchUser starting...')
         const res = await api.get('/users/me')
+        console.log('[DEBUG] Settings fetchUser success. user:', JSON.stringify(res.data.user))
         if (res.data.success && res.data.user) {
           const u = res.data.user
           setCurrentUser(u)
+          
+          const localLang = localStorage.getItem('sh_language')
+          const finalLang = localLang || u.preferredLanguage || 'English'
+          
+          u.preferredLanguage = finalLang
           localStorage.setItem('sh_user', JSON.stringify(u))
-          setSelectedLang(u.preferredLanguage || 'English')
+          localStorage.setItem('sh_language', finalLang)
+          setSelectedLang(finalLang)
+          
           if (u.notificationPreferences) setNotifications(u.notificationPreferences)
         }
       } catch (err) {
-        // Fallback to local user
+        console.error('[DEBUG] Settings fetchUser error:', err)
       }
     }
     fetchUser()
@@ -52,10 +62,9 @@ export default function Settings() {
   useEffect(() => {
     localStorage.setItem('sh_text_size', textSize)
     const root = document.documentElement
-    root.classList.remove('text-size-small', 'text-size-normal', 'text-size-large', 'text-size-xlarge')
-    if (textSize === 'Small') root.classList.add('text-size-small')
+    root.classList.remove('text-size-normal', 'text-size-medium', 'text-size-large')
+    if (textSize === 'Medium') root.classList.add('text-size-medium')
     else if (textSize === 'Large') root.classList.add('text-size-large')
-    else if (textSize === 'Extra Large') root.classList.add('text-size-xlarge')
     else root.classList.add('text-size-normal')
   }, [textSize])
 
@@ -87,19 +96,23 @@ export default function Settings() {
 
   // Handler: Language Selection
   const handleSelectLanguage = async (lang) => {
+    console.log('[DEBUG] handleSelectLanguage called with lang:', lang)
     setSelectedLang(lang)
-    try {
-      const res = await api.patch('/users/me', { preferredLanguage: lang })
-      if (res.data.success) {
-        const u = { ...currentUser, preferredLanguage: lang }
-        setCurrentUser(u)
-        localStorage.setItem('sh_user', JSON.stringify(u))
-        setLangMsg(`Language set to ${lang}.`)
-        setTimeout(() => setLangMsg(null), 3000)
-      }
-    } catch (err) {
-      // fallback local
-    }
+    localStorage.setItem('sh_language', lang)
+    
+    const u = { ...currentUser, preferredLanguage: lang }
+    setCurrentUser(u)
+    localStorage.setItem('sh_user', JSON.stringify(u))
+
+    // Run PATCH request asynchronously in the background
+    api.patch('/users/me', { preferredLanguage: lang }).catch(err => {
+      console.error('[DEBUG] PATCH /users/me error:', err)
+    })
+    
+    setLangMsg(`Language set to ${lang}.`)
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
   }
 
   // Handler: Notifications Toggle
@@ -156,9 +169,11 @@ export default function Settings() {
     navigate('/')
   }
 
+  const currentLang = currentUser.preferredLanguage || 'English'
+
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">⚙️ Settings</h1>
+      <h1 className="text-2xl font-bold text-foreground">⚙️ {t('Settings', currentLang)}</h1>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -196,40 +211,12 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Role Switcher */}
-      <div className="card bg-gradient-to-r from-primary-50 to-emerald-50 border-2 border-primary-200">
-        <h2 className="font-extrabold text-lg text-foreground mb-1 flex items-center gap-2">
-          🔄 Active Mode Switcher
-        </h2>
-        <p className="text-xs text-muted mb-3">Switch between Provider and Job Provider modes for live testing</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => handleRoleChange('provider')}
-            className={`p-3 rounded-xl border-2 text-center font-bold text-sm transition-all ${
-              currentUser.role === 'provider' ? 'border-primary bg-primary text-white shadow-xs' : 'border-border bg-white text-foreground'
-            }`}
-            id="btn-switch-provider"
-          >
-            👵 Provider View
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoleChange('job_provider')}
-            className={`p-3 rounded-xl border-2 text-center font-bold text-sm transition-all ${
-              currentUser.role === 'job_provider' ? 'border-primary bg-primary text-white shadow-xs' : 'border-border bg-white text-foreground'
-            }`}
-            id="btn-switch-job-provider"
-          >
-            👤 Job Provider View
-          </button>
-        </div>
-      </div>
+
 
       {/* Language Preference */}
       <div className="card">
         <h2 className="font-bold text-lg text-foreground mb-3 flex items-center gap-2">
-          <Globe size={20} className="text-primary" /> Preferred Language
+          <Globe size={20} className="text-primary" /> {t('Preferred Language', currentLang)}
         </h2>
         {langMsg && <p className="text-xs font-bold text-emerald-600 mb-2">{langMsg}</p>}
         <div className="flex flex-wrap gap-2">
@@ -250,16 +237,16 @@ export default function Settings() {
       {/* Text Size (App-Wide Scaling) */}
       <div className="card">
         <h2 className="font-bold text-lg text-foreground mb-3 flex items-center gap-2">
-          🔡 App Text Size (Senior-Friendly Accessibility)
+          🔡 {t('App Text Size', currentLang)}
         </h2>
         <div className="flex gap-2">
-          {['Normal', 'Large', 'Extra Large'].map(size => (
+          {['Normal', 'Medium', 'Large'].map(size => (
             <button
               key={size}
               onClick={() => setTextSize(size)}
               className={`flex-1 py-3 rounded-xl border-2 font-bold transition-all min-h-touch
                 ${textSize === size ? 'border-primary bg-primary-100 text-primary' : 'border-border text-foreground'}`}
-              id={`font-${size.toLowerCase().replace(' ', '-')}`}
+              id={`font-${size.toLowerCase()}`}
             >
               {size}
             </button>
@@ -270,15 +257,13 @@ export default function Settings() {
       {/* Notifications Preferences */}
       <div className="card">
         <h2 className="font-bold text-lg text-foreground mb-3 flex items-center gap-2">
-          <Bell size={20} className="text-primary" /> Notification Preferences
+          <Bell size={20} className="text-primary" /> {t('Notification Preferences', currentLang)}
         </h2>
         {notifMsg && <p className="text-xs font-bold text-emerald-600 mb-2">{notifMsg}</p>}
         <div className="space-y-4">
           {[
-            { key: 'jobs', label: 'Opportunity & Application Updates', desc: 'Get notified when new applications arrive or statuses change' },
-            { key: 'messages', label: 'New Message Alerts', desc: 'Real-time alerts for incoming chat messages' },
-            { key: 'payments', label: 'Payment Updates', desc: 'Confirmations when bookings are completed or paid' },
-            { key: 'updates', label: 'Platform Announcements', desc: 'Important community updates and safety tips' },
+            { key: 'jobs', label: t('Opportunity & Application Updates', currentLang), desc: 'Get notified when new applications arrive or statuses change' },
+            { key: 'messages', label: t('New Message Alerts', currentLang), desc: 'Real-time alerts for incoming chat messages' },
           ].map(item => (
             <div key={item.key} className="flex items-center justify-between gap-4">
               <div className="flex-1">
@@ -352,7 +337,7 @@ export default function Settings() {
           className="w-full btn-secondary text-foreground hover:bg-gray-100 text-base py-3.5 font-bold"
           id="btn-logout"
         >
-          <LogOut size={20} /> Sign Out
+          <LogOut size={20} /> {t('Sign Out', currentLang)}
         </button>
 
         <button
