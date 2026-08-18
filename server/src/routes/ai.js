@@ -248,7 +248,7 @@ Your goals:
   }
 })
 
-// ── Advanced Dynamic Keyword Extraction & Prediction Engine ─────────────────────────────
+// ── Multi-Lingual Dynamic Keyword Extraction & Prediction Engine (Tamil, Hindi, English) ──
 
 const DOMAIN_TAXONOMY = [
   {
@@ -256,10 +256,19 @@ const DOMAIN_TAXONOMY = [
     name: 'Traditional Home Cooking & Culinary Art',
     icon: '🍳',
     keywords: [
+      // English
       'cook', 'cooking', 'home cooked', 'traditional food', 'recipe', 'recipes', 'rasam', 'sambar',
       'dal', 'curry', 'curries', 'roti', 'phulka', 'chapati', 'paratha', 'sabzi', 'biryani', 'pulao',
       'south indian', 'north indian', 'rajasthani', 'gujarati', 'bengali', 'kerala', 'maharashtrian',
-      'andhra', 'chettinad', 'tiffin', 'breakfast', 'lunch', 'dinner', 'homestyle meals', 'thali'
+      'andhra', 'chettinad', 'tiffin', 'breakfast', 'lunch', 'dinner', 'homestyle meals', 'thali',
+      // Tamil (தமிழ் & Tanglish)
+      'சமையல்', 'சாம்பார்', 'ரசம்', 'குழம்பு', 'பொரியல்', 'கூட்டு', 'இட்லி', 'தோசை', 'பிரியாணி',
+      'சாதம்', 'சோறு', 'சமையல்காரர்', 'சமையல் கலை', 'விருந்து', 'உணவு', 'டிபன்',
+      'samayal', 'kulambu', 'poriyal', 'kootu', 'saadham', 'tiffen',
+      // Hindi (हिंदी & Hinglish)
+      'खाना बनाना', 'कुकिंग', 'रसोई', 'दाल', 'सब्जी', 'रोटी', 'चावल', 'बिरयानी', 'पराठा',
+      'थाली', 'नाश्ता', 'भोजन', 'पकाना', 'शेफ',
+      'khana banana', 'rasoi', 'rasoiya', 'pakwan', 'khana'
     ],
     serviceBuilder: (kw) => `Authentic Homestyle ${kw.length ? kw.slice(0, 2).join(' & ') : 'Traditional'} Meal Preparation & Catering`,
     productBuilder: (kw) => `Daily Homestyle Fresh Tiffin & ${kw[0] || 'Traditional Food'} Meal Boxes`,
@@ -269,9 +278,18 @@ const DOMAIN_TAXONOMY = [
     name: 'Artisanal Pickles, Podis & Heritage Preserves',
     icon: '🫙',
     keywords: [
+      // English
       'pickle', 'pickles', 'achar', 'avakkai', 'oorugai', 'mango pickle', 'lemon pickle', 'garlic pickle',
       'chutney', 'podi', 'idli podi', 'gunpowder', 'masala', 'ghee', 'homemade ghee', 'papad', 'appalam',
-      'vadam', 'vathal', 'preserve', 'jam', 'spice blend', 'curry powder'
+      'vadam', 'vathal', 'preserve', 'jam', 'spice blend', 'curry powder',
+      // Tamil (தமிழ் & Tanglish)
+      'ஊறுகாய்', 'அவக்காய்', 'மாங்காய் ஊறுகாய்', 'எலுமிச்சை ஊறுகாய்', 'பூண்டு ஊறுகாய்',
+      'இட்லி பொடி', 'பருப்பு பொடி', 'நெய்', 'சுத்தமான நெய்', 'அப்பளம்', 'வத்தல்', 'வடம்', 'சட்னி',
+      'oorugai', 'idli podi', 'paruppu podi', 'nei', 'vadam', 'vathal',
+      // Hindi (हिंदी & Hinglish)
+      'अचार', 'आम का अचार', 'नींबू का अचार', 'लहसुन का अचार', 'चटनी', 'मसाला', 'पोड़ी',
+      'शुद्ध घी', 'घर का घी', 'पापड़', 'मुरब्बा',
+      'aachar', 'masale', 'shuddh ghee', 'desi ghee'
     ],
     serviceBuilder: (kw) => `Custom Heritage ${kw[0] || 'Pickle'} & Fresh Masala Podi Preparation`,
     productBuilder: (kw) => `Artisanal Small-Batch ${kw.slice(0, 2).join(' & ') || 'Homemade Pickles & Podis'}`,
@@ -281,9 +299,16 @@ const DOMAIN_TAXONOMY = [
     name: 'Traditional Sweets, Savories & Home Baking',
     icon: '🧁',
     keywords: [
+      // English
       'bake', 'baking', 'cake', 'cupcake', 'cookies', 'pastry', 'bread', 'dessert', 'sweets', 'mithai',
       'halwa', 'laddu', 'laddoo', 'mysore pak', 'gulab jamun', 'burfi', 'peda', 'murukku', 'mixture',
-      'thattai', 'seedai', 'diwali sweets', 'festive snacks'
+      'thattai', 'seedai', 'diwali sweets', 'festive snacks',
+      // Tamil (தமிழ் & Tanglish)
+      'இனிப்பு', 'பலகாரம்', 'லட்டு', 'மைசூர் பாக்', 'அல்வா', 'முறுக்கு', 'சீடை', 'தட்டை', 'கேக்',
+      'inippu', 'palagaram', 'mysorepak', 'seedai',
+      // Hindi (हिंदी & Hinglish)
+      'मिठाई', 'हलवा', 'लड्डू', 'पेड़ा', 'बर्फी', 'गुलाब जामुन', 'केक', 'बेकिंग', 'नमकीन', 'मिश्रण',
+      'mithai', 'namkeen', 'mithaiya'
     ],
     serviceBuilder: (kw) => `Fresh Handcrafted ${kw[0] || 'Celebration Sweets'} & Festival Treat Catering`,
     productBuilder: (kw) => `Boxed Traditional ${kw.slice(0, 2).join(' & ') || 'Festive Sweets & Savories'}`,
@@ -293,9 +318,18 @@ const DOMAIN_TAXONOMY = [
     name: 'Custom Saree Blouse Tailoring & Garment Fitting',
     icon: '🧵',
     keywords: [
+      // English
       'stitch', 'stitching', 'tailor', 'tailoring', 'blouse', 'saree blouse', 'designer blouse', 'salwar',
       'kurti', 'kameez', 'lehenga', 'fall', 'pico', 'fall pico', 'alteration', 'fitting', 'hem',
-      'dressmaking', 'sewing', 'garment', 'lining work', 'piping'
+      'dressmaking', 'sewing', 'garment', 'lining work', 'piping',
+      // Tamil (தமிழ் & Tanglish)
+      'தையல்', 'பிளவுஸ்', 'புடவை பிளவுஸ்', 'சட்டை', 'சுடிதார்', 'தைக்க', 'தையல்காரர்',
+      'ஆல்டரேஷன்', 'ஓரமடித்தல்', 'தையல் கலை',
+      'thaiyal', 'thaika', 'blouse thaikka', 'chudidar',
+      // Hindi (हिंदी & Hinglish)
+      'सिलाई', 'सिलाई काम', 'टेलरिंग', 'ब्लाउज', 'साड़ी ब्लाउज', 'सलवार सूट', 'कुर्ती',
+      'फॉल पिको', 'फिटिंग', 'सिलाई मास्टर', 'ड्रेस मेकिंग',
+      'silai', 'silai kaam', 'silai machine', 'darzi'
     ],
     serviceBuilder: (kw) => `Custom ${kw[0] || 'Saree Blouse'} Stitching, Fall-Pico & Express Fitting`,
     productBuilder: (kw) => `Tailored Designer Blouse Pieces & Handcrafted Potli Gift Bags`,
@@ -305,8 +339,15 @@ const DOMAIN_TAXONOMY = [
     name: 'Aari, Zardozi & Hand Embroidery Work',
     icon: '✨',
     keywords: [
+      // English
       'embroidery', 'embroider', 'aari', 'aari work', 'zardozi', 'beadwork', 'thread work', 'maggam',
-      'maggam work', 'mirror work', 'sequin', 'hand work', 'needlework', 'stone work', 'cut work', 'kasuti'
+      'maggam work', 'mirror work', 'sequin', 'hand work', 'needlework', 'stone work', 'cut work', 'kasuti',
+      // Tamil (தமிழ் & Tanglish)
+      'ஆரி வேலை', 'எம்பிராய்டரி', 'ஜர்தோசி', 'மணப்பெண் பிளவுஸ்', 'மணி வேலை', 'தறி வேலை', 'கண்ணாடி வேலை',
+      'aari vela', 'zardosi vela',
+      // Hindi (हिंदी & Hinglish)
+      'कढ़ाई', 'आरी वर्क', 'जरदोजी', 'हाथ की कढ़ाई', 'कशीदाकारी', 'मोती का काम', 'शीशा काम',
+      'kadhai', 'jari kaam', 'maggam work'
     ],
     serviceBuilder: (kw) => `Bridal & Festive ${kw[0] || 'Aari & Zardozi'} Hand Embroidery Work`,
     productBuilder: (kw) => `Embroidered Dupattas, Cushion Covers & Decorative Art Hangings`,
@@ -316,8 +357,13 @@ const DOMAIN_TAXONOMY = [
     name: 'Knitting, Crochet & Fiber Crafts',
     icon: '🧶',
     keywords: [
+      // English
       'knit', 'knitting', 'crochet', 'wool', 'woolen', 'sweater', 'muffler', 'macrame', 'yarn',
-      'baby blanket', 'booties', 'shawl', 'doily', 'coasters', 'crochet bag'
+      'baby blanket', 'booties', 'shawl', 'doily', 'coasters', 'crochet bag',
+      // Tamil (தமிழ் & Tanglish)
+      'கம்பளி பின்னுதல்', 'குரோஷா', 'கம்பளி ஆடை', 'ஸ்வெட்டர்', 'குரோஷே',
+      // Hindi (हिंदी & Hinglish)
+      'बुनाई', 'क्रोशिए का काम', 'ऊन की बुनाई', 'स्वेटर', 'मफलर', 'शॉल', 'ऊन'
     ],
     serviceBuilder: (kw) => `Bespoke Hand-Knitted ${kw[0] || 'Woolen'} Garments & Custom Crochet Sets`,
     productBuilder: (kw) => `Handcrafted Crochet Bags, Woolen Baby Sets & Home Decor Doilies`,
@@ -327,9 +373,18 @@ const DOMAIN_TAXONOMY = [
     name: 'Mathematics, Science & Academic Mentorship',
     icon: '📐',
     keywords: [
+      // English
       'math', 'maths', 'mathematics', 'algebra', 'geometry', 'arithmetic', 'calculus', 'physics',
       'chemistry', 'science', 'teach', 'teaching', 'tutor', 'tutoring', 'tuition', 'class 10', 'class 12',
-      'school', 'student', 'cbse', 'icse', 'state board', 'exam prep', 'homework help'
+      'school', 'student', 'cbse', 'icse', 'state board', 'exam prep', 'homework help',
+      // Tamil (தமிழ் & Tanglish)
+      'பாடம்', 'ஆசிரியர்', 'டியூஷன்', 'கணிதம்', 'அறிவியல்', 'இயற்பியல்', 'வேதியியல்',
+      'பள்ளி பாடம்', '10ம் வகுப்பு', '12ம் வகுப்பு', 'படிப்பு', 'கற்பித்தல்',
+      'paadam', 'aasiriyar', 'kanitham', 'ariviyal', 'padikkanum',
+      // Hindi (हिंदी & Hinglish)
+      'पढ़ाना', 'शिक्षक', 'अध्यापिका', 'ट्यूशन', 'गणित', 'विज्ञान', 'भौतिकी', 'रसायन विज्ञान',
+      'स्कूल', '10वीं क्लास', '12वीं क्लास', 'पढ़ाई', 'कोचिंग',
+      'padhana', 'shikshika', 'adhyapak', 'ganit', 'vigyan'
     ],
     serviceBuilder: (kw) => `1-on-1 Concept Clarity & Board Exam ${kw[0] || 'Maths & Science'} Tutoring`,
     productBuilder: (kw) => `Curated Formula Sheets & Quick-Revision Subject Study Notes`,
@@ -339,9 +394,15 @@ const DOMAIN_TAXONOMY = [
     name: 'Language Tutoring, Shlokas & Vedic Chanting',
     icon: '📚',
     keywords: [
+      // English
       'english', 'spoken english', 'hindi', 'tamil', 'sanskrit', 'telugu', 'kannada', 'marathi',
       'grammar', 'speaking', 'slokas', 'shloka', 'chanting', 'scripture', 'bhagavad gita',
-      'stotra', 'sahasranamam', 'devotional', 'moral stories'
+      'stotra', 'sahasranamam', 'devotional', 'moral stories',
+      // Tamil (தமிழ் & Tanglish)
+      'சுலோகம்', 'ஸ்லோகம்', 'பக்தி பாடல்கள்', 'தேவாரம்', 'திருவாசகம்', 'தமிழ் பாடம்', 'சமஸ்கிருதம்',
+      'slokam', 'devaram', 'bakthi',
+      // Hindi (हिंदी & Hinglish)
+      'श्लोक', 'मंत्र', 'संस्कृत', 'हिंदी व्याकरण', 'श्रीमद्भगवद्गीता', 'स्तोत्र', 'पाठ', 'धार्मिक'
     ],
     serviceBuilder: (kw) => `Personalized ${kw[0] || 'Language'} Tutoring & Traditional Shloka Recitation Lessons`,
     productBuilder: (kw) => `Personalized Audio Pronunciation Guides & Chanting Study Cards`,
@@ -351,8 +412,14 @@ const DOMAIN_TAXONOMY = [
     name: 'Terrace Gardening, Composting & Plant Care',
     icon: '🌿',
     keywords: [
+      // English
       'garden', 'gardening', 'plant', 'plants', 'bonsai', 'organic', 'compost', 'vegetables', 'flower',
-      'nursery', 'terrace garden', 'herbs', 'medicinal plants', 'gardener', 'potting'
+      'nursery', 'terrace garden', 'herbs', 'medicinal plants', 'gardener', 'potting',
+      // Tamil (தமிழ் & Tanglish)
+      'மாடித்தோட்டம்', 'செடி வளர்ப்பு', 'இயற்கை உரம்', 'தோட்டம்', 'பூச்செடி',
+      'maadi thottam', 'chedi',
+      // Hindi (हिंदी & Hinglish)
+      'बागवानी', 'पेड़-पौधे', 'गमले', 'जैविक खाद', 'टैरेस गार्डन', 'सब्जियां', 'फूल'
     ],
     serviceBuilder: (kw) => `Home Terrace Garden Setup & Organic Plant Care Consultation`,
     productBuilder: (kw) => `Homemade Organic Compost & Propagated Seedling Starter Pots`,
@@ -362,8 +429,14 @@ const DOMAIN_TAXONOMY = [
     name: 'Traditional Handicrafts, Kolam & Festive Art',
     icon: '🎨',
     keywords: [
+      // English
       'craft', 'crafts', 'handicraft', 'pottery', 'clay', 'painting', 'sketch', 'art', 'origami',
-      'quilling', 'diy', 'rangoli', 'kolam', 'diya painting', 'tanjore painting', 'festive decor'
+      'quilling', 'diy', 'rangoli', 'kolam', 'diya painting', 'tanjore painting', 'festive decor',
+      // Tamil (தமிழ் & Tanglish)
+      'கைவினைப் பொருட்கள்', 'கோலம்', 'ரங்கோலி', 'ஓவியம்', 'மண் பாண்டம்', 'விளக்கு அலங்காரம்',
+      'kolam', 'kaivinai',
+      // Hindi (हिंदी & Hinglish)
+      'हस्तकला', 'हैंडीक्राफ्ट', 'रंगोली', 'पेंटिंग', 'मिट्टी के बर्तन', 'दीया सजावट', 'कला'
     ],
     serviceBuilder: (kw) => `Custom Event ${kw[0] || 'Rangoli/Kolam'} & Handmade Festive Decoration Design`,
     productBuilder: (kw) => `Hand-painted Diyas, Traditional Art Pieces & Festive Wall Accents`,
@@ -373,8 +446,14 @@ const DOMAIN_TAXONOMY = [
     name: 'Child Care, Cultural Storytelling & Guidance',
     icon: '👶',
     keywords: [
+      // English
       'child', 'children', 'kid', 'kids', 'baby', 'babysit', 'babysitting', 'storytelling',
-      'moral stories', 'grandparent care', 'activity', 'after school', 'childcare', 'daycare'
+      'moral stories', 'grandparent care', 'activity', 'after school', 'childcare', 'daycare',
+      // Tamil (தமிழ் & Tanglish)
+      'குழந்தை வளர்ப்பு', 'தாத்தா பாட்டி கதைகள்', 'நீதி கதைகள்', 'குழந்தைகள் கவனிப்பு',
+      'kuzhandhai', 'kadhai',
+      // Hindi (हिंदी & Hinglish)
+      'बच्चों की देखभाल', 'दादी-नानी की कहानियां', 'बाल कहानी', 'शिशु देखभाल'
     ],
     serviceBuilder: (kw) => `After-School Cultural Storytelling & Homework Companion Sessions`,
     productBuilder: (kw) => `Handwritten Illustrated Story & Value Books for Children`,
@@ -384,8 +463,14 @@ const DOMAIN_TAXONOMY = [
     name: 'Small Business Bookkeeping & Record Keeping',
     icon: '📊',
     keywords: [
+      // English
       'account', 'accounting', 'accounts', 'bookkeeping', 'tally', 'gst', 'tax', 'excel',
-      'ledger', 'billing', 'finance', 'shop accounts', 'invoicing'
+      'ledger', 'billing', 'finance', 'shop accounts', 'invoicing',
+      // Tamil (தமிழ் & Tanglish)
+      'கணக்கு எழுதுதல்', 'வரவு செலவு', 'கடை கணக்கு', 'பில்லிங்', 'டேலி',
+      'kanakku', 'varavu selavu',
+      // Hindi (हिंदी & Hinglish)
+      'बहीखाता', 'मुनीम', 'अकाउंटिंग', 'हिसाब-किताब', 'टैली', 'बिलिंग', 'खाता'
     ],
     serviceBuilder: (kw) => `Local Small Business Bookkeeping & Monthly Billing Reconciliation`,
     productBuilder: (kw) => `Custom Excel Accounting Templates for Retail Stores & Vendors`,
@@ -394,14 +479,15 @@ const DOMAIN_TAXONOMY = [
 
 /**
  * Intelligent deterministic Keyword Extraction & Skill Prediction Engine
+ * Supports Tamil (தமிழ்), Hindi (हिंदी), Tanglish, Hinglish, and English
  */
 function extractKeywordsAndPredictSkills(text = '') {
   const clean = text.trim()
   const lower = clean.toLowerCase()
 
-  // 1. Extract years of experience with regex
+  // 1. Extract years of experience with multilingual regex (English, Tamil, Hindi, Tanglish)
   let experienceYears = '15+ years'
-  const yearMatch = lower.match(/(\d{1,2})\s*(?:\+|plus)?\s*(?:years?|yrs?|saal|varusham|varudangal)/i)
+  const yearMatch = lower.match(/(\d{1,2})\s*(?:\+|plus)?\s*(?:years?|yrs?|saal|varusham|varudangal|வருடங்கள்|வருடம்|ஆண்டுகள்|ஆண்டு|வருஷம்|साल|वर्ष|बरस|वर्षों|सालों)/i)
   if (yearMatch && parseInt(yearMatch[1], 10) > 0) {
     experienceYears = `${yearMatch[1]}+ years`
   } else {
@@ -409,9 +495,9 @@ function extractKeywordsAndPredictSkills(text = '') {
     if (sinceMatch) {
       const yrs = 2026 - parseInt(sinceMatch[1], 10)
       if (yrs > 0) experienceYears = `${yrs}+ years`
-    } else if (lower.includes('decades') || lower.includes('decade')) {
+    } else if (lower.includes('decades') || lower.includes('decade') || lower.includes('பல வருடங்கள்') || lower.includes('कई साल')) {
       experienceYears = '20+ years'
-    } else if (lower.includes('lifetime') || lower.includes('all my life')) {
+    } else if (lower.includes('lifetime') || lower.includes('all my life') || lower.includes('ஆயுள் முழுவதும்') || lower.includes('जीवन भर')) {
       experienceYears = '30+ years'
     }
   }
@@ -423,11 +509,11 @@ function extractKeywordsAndPredictSkills(text = '') {
   for (const domain of DOMAIN_TAXONOMY) {
     const hits = []
     for (const kw of domain.keywords) {
-      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const regex = new RegExp(`\\b${escaped}\\b`, 'i')
-      if (regex.test(lower)) {
+      const kwLower = kw.toLowerCase()
+      // Check if keyword is in text (handles both space-delimited and Unicode scripts)
+      if (lower.includes(kwLower)) {
         hits.push(kw)
-        // Capitalize for display chip
+        // Capitalize / format display chip
         const formatted = kw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
         detectedKeywordsSet.add(formatted)
       }
@@ -466,7 +552,7 @@ function extractKeywordsAndPredictSkills(text = '') {
   // Fallback if no specific taxonomy keyword matched
   if (matchedSkills.length === 0) {
     // Extract raw noun words from text for display
-    const rawTokens = clean.split(/\s+/).filter(w => w.length > 3 && !['have', 'with', 'from', 'this', 'that', 'know', 'like', 'been'].includes(w.toLowerCase()))
+    const rawTokens = clean.split(/\s+/).filter(w => w.length > 3 && !['have', 'with', 'from', 'this', 'that', 'know', 'like', 'been', 'நான்', 'எனக்கு', 'நான்', 'मुझे', 'मेरा'].includes(w.toLowerCase()))
     rawTokens.slice(0, 3).forEach(t => detectedKeywordsSet.add(t.charAt(0).toUpperCase() + t.slice(1)))
 
     matchedSkills.push(
@@ -603,10 +689,10 @@ router.post('/discover-skills', geminiRateLimiter, optionalAuth, async (req, res
           const genAI = new GoogleGenerativeAI(apiKey)
           const model = genAI.getGenerativeModel({ model: modelName })
 
-          const prompt = `Analyze this description from an Indian senior citizen or homemaker:
+          const prompt = `Analyze this description from an Indian senior citizen or homemaker (which may be in English, Tamil, Hindi, Tanglish, or Hinglish):
 "${description}"
 
-Extract exact keywords (culinary items, skills, techniques, crafts, subjects, years of experience, locations) and predict their marketable skills, estimated experience years, recommended services, and products.
+Understand their life experience and skills in their language, extract exact keywords (culinary items, skills, techniques, crafts, subjects, years of experience, locations) and predict their marketable skills, estimated experience years, recommended services, and products.
 
 Return ONLY valid JSON matching this exact structure:
 {

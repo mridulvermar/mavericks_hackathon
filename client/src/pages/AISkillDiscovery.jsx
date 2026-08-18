@@ -38,6 +38,8 @@ export default function AISkillDiscovery() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const [voiceLang, setVoiceLang] = useState('en-IN') // 'en-IN' | 'ta-IN' | 'hi-IN'
+
   const recognitionRef = useRef(null)
   const baseTextRef = useRef('')
 
@@ -48,7 +50,7 @@ export default function AISkillDiscovery() {
     }
   }, [])
 
-  const startListening = () => {
+  const startListening = (selectedLang = voiceLang) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
       setSpeechSupported(false)
@@ -67,11 +69,17 @@ export default function AISkillDiscovery() {
       const recognition = new SpeechRecognition()
       recognition.continuous = true
       recognition.interimResults = true
-      recognition.lang = 'en-IN' // Supports English/Hindi Indian accents
+      recognition.lang = selectedLang // 'ta-IN' (Tamil) | 'hi-IN' (Hindi) | 'en-IN' (English)
 
       recognition.onstart = () => {
         setIsListening(true)
-        setSpeechNotice('🎙️ Listening... Speak naturally about your skills and experience.')
+        if (selectedLang === 'ta-IN') {
+          setSpeechNotice('🎙️ கேட்கிறது... உங்கள் அனுபவத்தைப் பற்றி தமிழில் பேசுங்கள் (Listening in Tamil)...')
+        } else if (selectedLang === 'hi-IN') {
+          setSpeechNotice('🎙️ सुन रहा हूँ... अपने अनुभव के बारे में हिंदी में बोलें (Listening in Hindi)...')
+        } else {
+          setSpeechNotice('🎙️ Listening... Speak naturally about your skills and experience.')
+        }
       }
 
       recognition.onresult = (event) => {
@@ -103,7 +111,7 @@ export default function AISkillDiscovery() {
         if (event.error === 'not-allowed') {
           setSpeechNotice('Microphone permission denied. Please allow microphone access or type instead.')
         } else {
-          setSpeechNotice('Voice recognition paused. You can continue typing below.')
+          setSpeechNotice('Voice recognition paused. You can continue typing or click Speak again.')
         }
       }
 
@@ -117,6 +125,16 @@ export default function AISkillDiscovery() {
       console.error('Speech setup error:', err)
       setIsListening(false)
       setSpeechNotice('Could not start voice input. Please use typing mode instead.')
+    }
+  }
+
+  const handleLanguageChange = (newLang) => {
+    setVoiceLang(newLang)
+    if (isListening) {
+      stopListening()
+      setTimeout(() => {
+        startListening(newLang)
+      }, 250)
     }
   }
 
@@ -274,41 +292,92 @@ export default function AISkillDiscovery() {
             </div>
           )}
 
-          {/* Voice Active Bar */}
+          {/* Voice Language Selector & Active Bar */}
           {inputMode === 'speak' && (
-            <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-xl">
-              <div className="flex items-center gap-3">
-                <span className={`w-4 h-4 rounded-full ${isListening ? 'bg-red-500 animate-ping' : 'bg-gray-400'}`} />
-                <span className="font-semibold text-primary text-base">
-                  {isListening ? 'Microphone Active — Speak Now...' : 'Voice Ready'}
+            <div className="space-y-3 p-4 bg-primary-50/80 border border-primary-200 rounded-2xl animate-fadeIn">
+              {/* Language Selector */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary-200/60 pb-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                  🗣️ Choose Speaking Language:
                 </span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('en-IN')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                      ${voiceLang === 'en-IN' ? 'bg-primary text-white shadow-xs' : 'bg-white text-foreground hover:bg-gray-100 border border-border'}`}
+                    id="lang-voice-en"
+                  >
+                    English
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('ta-IN')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                      ${voiceLang === 'ta-IN' ? 'bg-primary text-white shadow-xs' : 'bg-white text-foreground hover:bg-gray-100 border border-border'}`}
+                    id="lang-voice-ta"
+                  >
+                    தமிழ் (Tamil)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('hi-IN')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                      ${voiceLang === 'hi-IN' ? 'bg-primary text-white shadow-xs' : 'bg-white text-foreground hover:bg-gray-100 border border-border'}`}
+                    id="lang-voice-hi"
+                  >
+                    हिंदी (Hindi)
+                  </button>
+                </div>
               </div>
-              {isListening ? (
-                <button
-                  type="button"
-                  onClick={stopListening}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 font-semibold rounded-lg text-sm hover:bg-red-200 min-h-touch"
-                >
-                  <MicOff size={16} className="inline mr-1" /> Pause
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startListening}
-                  className="px-3 py-1.5 bg-primary text-white font-semibold rounded-lg text-sm hover:bg-primary-700 min-h-touch"
-                >
-                  <Mic size={16} className="inline mr-1" /> Start Speaking
-                </button>
-              )}
+
+              {/* Status & Mic Control */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className={`w-3.5 h-3.5 rounded-full ${isListening ? 'bg-red-500 animate-ping' : 'bg-gray-400'}`} />
+                  <span className="font-semibold text-primary text-sm sm:text-base">
+                    {isListening
+                      ? voiceLang === 'ta-IN'
+                        ? 'தமிழில் பேசவும் (Listening in Tamil)...'
+                        : voiceLang === 'hi-IN'
+                        ? 'हिंदी में बोलें (Listening in Hindi)...'
+                        : 'Listening in English... Speak Now'
+                      : 'Voice Recognition Ready'}
+                  </span>
+                </div>
+                {isListening ? (
+                  <button
+                    type="button"
+                    onClick={stopListening}
+                    className="px-3.5 py-1.5 bg-red-100 text-red-700 font-bold rounded-xl text-sm hover:bg-red-200 min-h-touch flex items-center gap-1"
+                  >
+                    <MicOff size={16} /> Pause
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startListening(voiceLang)}
+                    className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-sm hover:bg-primary-700 min-h-touch flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Mic size={16} /> Start Speaking
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Textarea */}
+          {/* Textarea with dynamic multilingual placeholder */}
           <div>
             <textarea
-              className="input text-lg min-h-[140px] resize-none"
+              className="input text-lg min-h-[140px] resize-none leading-relaxed"
               rows={4}
-              placeholder="E.g., I have been cooking traditional meals for my family for 35 years. I specialize in Rajasthani dishes, making mango pickles, and hand stitching sarees..."
+              placeholder={
+                voiceLang === 'ta-IN'
+                  ? 'எ.கா., எனக்கு 25 வருடங்களாக பாரம்பரிய சமையல், மாங்காய் ஊறுகாய் தயாரிப்பு மற்றும் புடவை பிளவுஸ் தைக்கும் அனுபவம் உண்டு...'
+                  : voiceLang === 'hi-IN'
+                  ? 'उदा., मुझे 25 साल से पारंपरिक भोजन, आम का अचार बनाने और साड़ी ब्लाउज सिलाई का अनुभव है...'
+                  : 'E.g., I have 25 years of experience in traditional cooking, making mango pickles, and custom saree blouse stitching...'
+              }
               value={description}
               onChange={e => setDescription(e.target.value)}
               id="skills-textarea"
@@ -317,7 +386,7 @@ export default function AISkillDiscovery() {
 
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-muted">
-              Tip: Include years of experience or specific dishes/crafts you know well!
+              💡 Supports English, தமிழ் (Tamil), and हिंदी (Hindi) voice input!
             </span>
             <button
               type="button"
