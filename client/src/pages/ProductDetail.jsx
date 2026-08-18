@@ -177,8 +177,23 @@ export default function ProductDetail() {
           <p className="text-muted text-xs">Verified Artisan / Provider</p>
         </div>
         <button
-          onClick={() => navigate('/chat')}
-          className="btn-secondary py-2.5 px-4 text-sm font-semibold flex items-center gap-1.5"
+          onClick={() => {
+            const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+            const currentUserId = currentUser._id || currentUser.id || 'u_user'
+            const sellerName = product.seller || 'Artisan / Provider'
+            navigate('/chat', {
+              state: {
+                conversationId: `prod_${product._id || product.id}_${currentUserId}`,
+                name: sellerName,
+                role: 'Artisan / Provider',
+                opportunityTitle: product.name,
+                opportunityId: product._id || product.id,
+                avatar: product.emoji || '📦',
+                initialDraft: `Namaste ${sellerName}, I am interested in "${product.name}". Could you please share more details?`,
+              },
+            })
+          }}
+          className="btn-secondary py-2.5 px-4 text-sm font-semibold flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary-50"
           id="btn-message-seller"
         >
           <MessageSquare size={18} /> Chat

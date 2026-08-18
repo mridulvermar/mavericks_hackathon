@@ -9,9 +9,18 @@ const CITY_COORDINATES = {
   'Delhi': { lat: 28.6139, lng: 77.2090 },
 }
 
+// Domain taxonomy dictionaries for contextual matching
+const DOMAIN_KEYWORDS = {
+  teaching: ['teach', 'teacher', 'teaching', 'tutor', 'tutoring', 'tuition', 'math', 'maths', 'science', 'english', 'physics', 'chemistry', 'academic', 'school', 'student', 'cbse', 'icse', 'shloka', 'shlokas', 'stotra', 'sanskrit', 'education'],
+  cooking: ['cook', 'cooking', 'chef', 'catering', 'kitchen', 'food', 'meal', 'meals', 'tiffin', 'rasam', 'sambar', 'curry', 'roti', 'sabzi', 'dal', 'biryani', 'pickle', 'pickles', 'achar', 'podi', 'baking', 'sweets', 'mithai'],
+  tailoring: ['tailor', 'tailoring', 'stitch', 'stitching', 'blouse', 'saree', 'salwar', 'kurti', 'fall', 'pico', 'embroidery', 'aari', 'zardozi', 'sewing', 'garment', 'alteration', 'fitting', 'maggam'],
+  care: ['care', 'caregiving', 'elderly', 'elder', 'senior', 'companion', 'babysit', 'babysitting', 'childcare', 'storytelling', 'daycare'],
+  handicrafts: ['craft', 'crafts', 'handicraft', 'pottery', 'knit', 'knitting', 'crochet', 'wool', 'painting', 'art', 'rangoli', 'kolam', 'diya'],
+  accounts: ['account', 'accounts', 'accounting', 'bookkeeping', 'tally', 'gst', 'tax', 'excel', 'ledger', 'billing', 'finance'],
+}
+
 /**
  * Calculates Haversine distance in kilometers between two lat/lng points.
- * Structured so a Google Maps Distance Matrix API call can easily drop in later.
  */
 export function calculateDistance(coord1, coord2) {
   if (!coord1 || !coord2 || !coord1.lat || !coord2.lat) {
@@ -28,7 +37,7 @@ export function calculateDistance(coord1, coord2) {
       Math.sin(dLng / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   const dist = R * c
-  return Math.round(dist * 10) / 10 // Round to 1 decimal place
+  return Math.round(dist * 10) / 10
 }
 
 /**
@@ -44,27 +53,77 @@ export function getCoordinates(locationStr = '') {
 }
 
 /**
- * Main matching function that scores an opportunity against a user profile.
- * Returns matchPercent and human-readable reason.
+ * Detects active domains from a list of skill words and text descriptions
+ */
+function getDomains(tokens = []) {
+  const text = tokens.join(' ').toLowerCase()
+  const detected = []
+  for (const [domain, keywords] of Object.entries(DOMAIN_KEYWORDS)) {
+    if (keywords.some(kw => text.includes(kw))) {
+      detected.push(domain)
+    }
+  }
+  return detected
+}
+
+/**
+ * Main matching function that contextually scores an opportunity against a user profile.
+ * High skill overlap -> 85-98%
+ * Partial / related overlap -> 50-75%
+ * Unrelated domain (e.g. Teacher looking at Cook job) -> 15-35%
  */
 export function scoreOpportunity(opportunity, user = {}) {
-  const userSkills = (user.skills || ['Cooking', 'Tailoring', 'Handicrafts', 'Teaching']).map(s => s.toLowerCase())
-  const userCity = user.city || 'Chennai'
+  // Extract user skill words and profile text
+  const rawUserSkills = Array.isArray(user.skills) && user.skills.length > 0
+    ? user.skills
+    : (user.headline || user.bio || user.experience || '').split(/[,|•\n]/).filter(s => s.trim().length > 2)
+
+  const userSkillStrings = rawUserSkills.map(s => s.trim().toLowerCase())
+  const userCity = user.city || user.location || 'Chennai'
   const userLanguages = (user.languages || ['Tamil', 'English']).map(l => l.toLowerCase())
 
-  const oppSkills = (opportunity.skills || [opportunity.category || 'General']).map(s => s.toLowerCase())
+  // Extract opportunity texts
+  const oppSkills = (opportunity.skills || []).map(s => s.toLowerCase())
+  const oppCategory = (opportunity.category || '').toLowerCase()
+  const oppTitle = (opportunity.title || '').toLowerCase()
+  const oppDescription = (opportunity.description || '').toLowerCase()
   const oppCity = opportunity.city || opportunity.location || 'Chennai'
   const oppLanguages = (opportunity.languages || ['Tamil', 'English']).map(l => l.toLowerCase())
 
-  // 1. Skill Match
-  const matchingSkills = userSkills.filter(s =>
-    oppSkills.some(os => os.includes(s) || s.includes(os)) ||
-    (opportunity.title && opportunity.title.toLowerCase().includes(s)) ||
-    (opportunity.category && opportunity.category.toLowerCase().includes(s))
-  )
-  const skillScore = matchingSkills.length > 0 ? 50 : 20
+  const oppFullText = `${oppTitle} ${oppCategory} ${oppSkills.join(' ')} ${oppDescription}`
+  const userFullText = `${userSkillStrings.join(' ')} ${(user.headline || '')} ${(user.bio || '')}`.toLowerCase()
 
-  // 2. Location & Distance Match
+  // 1. Detect domain alignments
+  const userDomains = getDomains([userFullText])
+  const oppDomains = getDomains([oppFullText])
+
+  // Direct skill keywords hit
+  const directMatchingSkills = userSkillStrings.filter(s =>
+    s.length > 2 && (
+      oppSkills.some(os => os.includes(s) || s.includes(os)) ||
+      oppFullText.includes(s)
+    )
+  )
+
+  const domainMatch = userDomains.some(ud => oppDomains.includes(ud))
+
+  // 2. Skill Scoring (Max 70 points)
+  let skillScore = 0
+  if (directMatchingSkills.length > 0 && domainMatch) {
+    // Strong exact match
+    skillScore = 65 + Math.min(5, directMatchingSkills.length * 2)
+  } else if (directMatchingSkills.length > 0 || domainMatch) {
+    // Domain match or partial keyword match
+    skillScore = 55
+  } else if (userSkillStrings.length === 0) {
+    // General user with no profile filled
+    skillScore = 40
+  } else {
+    // Context mismatch (e.g. Teacher viewing Cooking job) -> strictly 0 to 10 points
+    skillScore = 5
+  }
+
+  // 3. Location & Distance Match (Max 20 points)
   const userCoords = user.coordinates || getCoordinates(userCity)
   const oppCoords = opportunity.coordinates || getCoordinates(oppCity)
   
@@ -72,41 +131,54 @@ export function scoreOpportunity(opportunity, user = {}) {
   let sameCity = false
   if (userCity.toLowerCase() === oppCity.toLowerCase() || opportunity.location?.toLowerCase().includes(userCity.toLowerCase())) {
     sameCity = true
-    distanceKm = Math.floor(Math.random() * 4) + 1.5 // 1.5 km - 5 km
+    distanceKm = 2.4
   } else {
     distanceKm = calculateDistance(userCoords, oppCoords)
   }
 
-  let locationScore = 40
+  let locationScore = 10
   if (sameCity || distanceKm <= 10) {
-    locationScore = 40
-  } else if (distanceKm <= 50) {
-    locationScore = 25
-  } else {
+    locationScore = 20
+  } else if (distanceKm <= 35) {
     locationScore = 15
+  } else {
+    locationScore = 5
   }
 
-  // 3. Language Match
+  // 4. Language Match (Max 10 points)
   const langMatch = userLanguages.some(l => oppLanguages.includes(l))
   const langScore = langMatch ? 10 : 5
 
-  // Total Score (out of 100)
-  const rawScore = skillScore + locationScore + langScore
-  const matchPercent = Math.min(98, Math.max(65, rawScore))
-
-  // Human Readable Reason Generator
-  let reason = ''
-  const skillName = matchingSkills.length > 0 ? matchingSkills[0] : (userSkills[0] || 'your profile')
-  const capitalizedSkill = skillName.charAt(0).toUpperCase() + skillName.slice(1)
-
-  if (sameCity && matchingSkills.length > 0) {
-    reason = `Recommended because you have ${capitalizedSkill} experience and this customer is ${distanceKm} km away in ${oppCity}.`
-  } else if (matchingSkills.length > 0) {
-    reason = `Recommended because your ${capitalizedSkill} background matches this requirement.`
-  } else if (sameCity) {
-    reason = `Recommended because this opportunity is nearby in ${oppCity} (${distanceKm} km away).`
+  // 5. Total Match Percentage calculation
+  let matchPercent = 0
+  if (skillScore >= 50) {
+    // Relevant skill match
+    matchPercent = Math.min(98, Math.max(75, skillScore + locationScore + langScore))
+  } else if (userSkillStrings.length === 0) {
+    // Neutral profile
+    matchPercent = Math.min(75, Math.max(50, skillScore + locationScore + langScore))
   } else {
-    reason = `Recommended based on your wisdom and verified skills.`
+    // Unrelated job category
+    matchPercent = Math.min(38, Math.max(15, skillScore + (sameCity ? 12 : 5) + (langMatch ? 5 : 2)))
+  }
+
+  // 6. Context-Aware Human Readable Reason Generator
+  let reason = ''
+  const primaryUserSkill = rawUserSkills[0] || (userDomains[0] ? userDomains[0].charAt(0).toUpperCase() + userDomains[0].slice(1) : '')
+
+  if (matchPercent >= 80) {
+    if (directMatchingSkills.length > 0) {
+      const displaySkill = directMatchingSkills[0].charAt(0).toUpperCase() + directMatchingSkills[0].slice(1)
+      reason = `Recommended because you have verified ${displaySkill} expertise and this client is ${distanceKm} km away in ${oppCity}.`
+    } else {
+      reason = `High match for your background in ${opportunity.category || 'this domain'} (${distanceKm} km away).`
+    }
+  } else if (matchPercent >= 50) {
+    reason = `Moderate match nearby in ${oppCity}. Explore if you want to expand into ${opportunity.category || 'new skills'}.`
+  } else {
+    // Low mismatch reason
+    const userRoleDesc = primaryUserSkill ? `Your profile specializes in ${primaryUserSkill}` : 'Your skill set'
+    reason = `Lower match: This position requires ${opportunity.category || 'different'} skills. ${userRoleDesc}.`
   }
 
   return {
@@ -117,3 +189,4 @@ export function scoreOpportunity(opportunity, user = {}) {
     distanceText: `${distanceKm} km away`,
   }
 }
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Briefcase, ShoppingBag, Bot, Star, Bell, ChevronRight, Sparkles, MapPin, IndianRupee, PlusCircle, Search, UserCheck } from 'lucide-react'
+import { TrendingUp, Briefcase, ShoppingBag, Bot, Star, Bell, ChevronRight, Sparkles, MapPin, IndianRupee, PlusCircle, Search, UserCheck, MessageSquare } from 'lucide-react'
 
 import { api, API_BASE_URL } from '../api/axios'
 
@@ -43,8 +43,12 @@ export default function Dashboard() {
           }
         } else {
           // Provider home: matched opportunities + bookings
+          const oppUrl = (user._id || user.id)
+            ? `${API_BASE_URL}/opportunities?userId=${encodeURIComponent(user._id || user.id)}`
+            : `${API_BASE_URL}/opportunities`
+
           const [oppsRes, bookingsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/opportunities`),
+            fetch(oppUrl, { headers }),
             fetch(`${API_BASE_URL}/bookings`, { headers }),
           ])
           const oppsData = await oppsRes.json()
@@ -115,11 +119,12 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => navigate('/chat')}
-          className="relative p-3 bg-white rounded-xl shadow-card border border-border min-h-touch min-w-touch"
-          aria-label="Notifications"
+          className="relative p-3 bg-white rounded-xl shadow-card border border-border min-h-touch min-w-touch text-primary hover:bg-primary-50 transition-colors"
+          aria-label="Messages"
+          id="btn-dashboard-messages"
         >
-          <Bell size={24} />
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full" />
+          <MessageSquare size={24} />
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
         </button>
       </div>
 
@@ -238,11 +243,16 @@ export default function Dashboard() {
           <div className="space-y-3">
             {recommended.map(opp => {
               const oppId = opp._id || opp.id
+              const matchScore = typeof opp.matchPercent === 'number' ? opp.matchPercent : 50
+              const isHigh = matchScore >= 75
+              const isModerate = matchScore >= 45 && matchScore < 75
+
               return (
                 <button
                   key={oppId}
                   onClick={() => navigate(`/opportunities/${oppId}`)}
-                  className="card w-full text-left hover:shadow-float transition-all border-2 hover:border-primary-300 space-y-2 p-4"
+                  className={`card w-full text-left hover:shadow-float transition-all border-2 space-y-2 p-4
+                    ${isHigh ? 'border-emerald-300 hover:border-emerald-500' : 'border-border hover:border-primary-300'}`}
                   id={`rec-opp-${oppId}`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -250,13 +260,31 @@ export default function Dashboard() {
                       <span className="badge-gray text-xs mb-1 inline-block">{opp.category}</span>
                       <h3 className="font-bold text-foreground text-base leading-snug">{opp.title}</h3>
                     </div>
-                    <span className="badge-green text-xs font-bold shrink-0">
-                      ✨ {opp.matchPercent || 92}% Match
+                    <span
+                      className={`text-xs font-bold shrink-0 px-2.5 py-1 rounded-full
+                        ${
+                          isHigh
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : isModerate
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                        }`}
+                    >
+                      {isHigh ? '✨' : isModerate ? '⚡' : '⚠️'} {matchScore}% Match
                     </span>
                   </div>
 
                   {opp.matchReason && (
-                    <p className="text-xs text-primary-900 bg-primary-50 p-2 rounded-lg font-medium">
+                    <p
+                      className={`text-xs p-2 rounded-lg font-medium border
+                        ${
+                          isHigh
+                            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                            : isModerate
+                            ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                            : 'bg-gray-50 border-gray-200 text-gray-700'
+                        }`}
+                    >
                       💡 {opp.matchReason}
                     </p>
                   )}

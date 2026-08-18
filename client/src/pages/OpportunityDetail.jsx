@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MapPin, Clock, IndianRupee, ArrowLeft, Share2, Bookmark, CheckCircle, Sparkles, UserCheck, Calendar, X } from 'lucide-react'
+import { MapPin, Clock, IndianRupee, ArrowLeft, Share2, Bookmark, CheckCircle, Sparkles, UserCheck, Calendar, X, MessageSquare } from 'lucide-react'
 
 import { API_BASE_URL } from '../api/axios'
 
@@ -17,6 +17,27 @@ export default function OpportunityDetail() {
   const [bookingTime, setBookingTime] = useState('10:00 AM')
   const [bookingSuccess, setBookingSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const currentUserId = currentUser._id || currentUser.id || 'u_user'
+
+  const handleMessageEmployer = () => {
+    const employerName = opp.clientName || 'Job Provider'
+    const convId = `opp_${opp._id || opp.id}_${currentUserId}`
+
+    navigate('/chat', {
+      state: {
+        conversationId: convId,
+        name: employerName,
+        role: 'Job Provider',
+        opportunityTitle: opp.title,
+        opportunityId: opp._id || opp.id,
+        recipientId: opp.postedById || opp.postedBy || '',
+        avatar: '💼',
+        initialDraft: `Namaste ${employerName}, I am interested in "${opp.title}". Could you please share more details about the timings and job requirements?`,
+      },
+    })
+  }
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -178,25 +199,41 @@ export default function OpportunityDetail() {
       )}
 
       {/* Client Info */}
-      <div className="card flex items-center gap-4">
-        <div className="w-14 h-14 bg-primary-100 rounded-full flex items-center justify-center text-2xl">👤</div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-lg text-foreground">{opp.clientName || 'Employer'}</p>
-            {opp.clientVerified !== false && <span className="badge-green text-sm flex items-center gap-1"><UserCheck size={14} /> Verified</span>}
+      <div className="card flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-primary-100 rounded-full flex items-center justify-center text-2xl">👤</div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-lg text-foreground">{opp.clientName || 'Employer'}</p>
+              {opp.clientVerified !== false && <span className="badge-green text-sm flex items-center gap-1"><UserCheck size={14} /> Verified</span>}
+            </div>
+            <p className="text-muted text-sm">Verified Employer / Client</p>
           </div>
-          <p className="text-muted text-sm">Verified Employer</p>
         </div>
+        <button
+          onClick={handleMessageEmployer}
+          className="btn-secondary py-2.5 px-4 text-sm font-semibold flex items-center gap-1.5 border-primary/40 text-primary hover:bg-primary-50"
+          id="btn-chat-employer-card"
+        >
+          <MessageSquare size={18} /> Message
+        </button>
       </div>
 
-      {/* Apply CTA */}
-      <div className="sticky bottom-24 lg:bottom-6">
+      {/* Dual CTA: Message Job Provider & Apply */}
+      <div className="sticky bottom-24 lg:bottom-6 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-float border border-border">
+        <button
+          onClick={handleMessageEmployer}
+          className="btn-secondary py-3.5 px-4 text-base font-bold flex items-center justify-center gap-2 border-2 border-primary text-primary hover:bg-primary-50"
+          id="btn-message-employer"
+        >
+          <MessageSquare size={20} /> Ask Details / Chat
+        </button>
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary w-full text-lg py-4 shadow-float font-bold flex items-center justify-center gap-2"
+          className="btn-primary py-3.5 px-4 text-base font-bold flex items-center justify-center gap-2 shadow-sm"
           id="btn-apply"
         >
-          <Calendar size={22} /> Apply for Opportunity
+          <Calendar size={20} /> Apply for Opportunity
         </button>
       </div>
 

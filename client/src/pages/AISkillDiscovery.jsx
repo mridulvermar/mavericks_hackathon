@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Briefcase,
   Check,
+  Tag,
 } from 'lucide-react'
 import aiAPI from '../api/ai'
 import authAPI from '../api/auth'
@@ -369,6 +370,30 @@ export default function AISkillDiscovery() {
               </div>
             </div>
           </div>
+
+          {/* Extracted Keywords Card */}
+          {analysisResult.extractedKeywords && analysisResult.extractedKeywords.length > 0 && (
+            <div className="card p-5 space-y-3 border-2 border-primary/20 bg-primary-50/30 shadow-card">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                  <Tag size={18} className="text-primary" /> Extracted Keywords & Signals
+                </h3>
+                <span className="badge-green text-xs font-semibold">
+                  {analysisResult.source === 'gemini' ? '✨ Gemini AI Extraction' : '⚡ Semantic Keyword Engine'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {analysisResult.extractedKeywords.map((kw, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-primary/30 text-primary font-bold text-sm shadow-xs hover:border-primary transition-colors"
+                  >
+                    🔑 {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Discovered Skill Chips */}
           <div className="card p-6 space-y-4">

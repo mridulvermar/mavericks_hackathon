@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Message from '../models/Message.js'
+import { inMemoryMessages } from '../routes/chat.js'
 
 const connectedUsers = new Map() // userId → socketId
 
@@ -9,6 +10,7 @@ export const setupSocketIO = (io) => {
 
     // User identifies themselves and joins personal room
     socket.on('user:join', (userId) => {
+      if (!userId) return
       connectedUsers.set(userId, socket.id)
       socket.join(`user:${userId}`)
       io.emit('user:online', { userId, online: true })
@@ -17,14 +19,31 @@ export const setupSocketIO = (io) => {
 
     // Join a specific conversation or booking chat room
     socket.on('chat:join', (roomId) => {
+      if (!roomId) return
       socket.join(`chat:${roomId}`)
       console.log(`💬 Socket ${socket.id} joined room chat:${roomId}`)
     })
 
     // Send real-time chat message
     socket.on('chat:message', async (data) => {
-      const { clientMsgId, roomId, conversationId, message, senderId, senderName, text } = data
-      const targetRoom = roomId || conversationId || 'c1'
+      const {
+        clientMsgId,
+        roomId,
+        conversationId,
+        message,
+        senderId,
+        senderName,
+        recipientId,
+        recipientName,
+        opportunityTitle,
+        opportunityId,
+        bookingId,
+        text,
+      } = data
+      const targetRoom = roomId || conversationId || 'c_default'
+      const messageText = text || message?.text || ''
+
+      if (!messageText.trim()) return
 
       // Check if recipient is active in the same chat room
       const roomSockets = io.sockets.adapter.rooms.get(`chat:${targetRoom}`)
@@ -36,11 +55,17 @@ export const setupSocketIO = (io) => {
         id: clientMsgId || String(Date.now()),
         clientMsgId: clientMsgId || String(Date.now()),
         conversationId: targetRoom,
-        text: text || message?.text || '',
-        senderId: senderId,
+        text: messageText,
+        senderId: senderId || 'u_user',
         sender: 'other', // Will be determined on client by comparing senderId
         senderName: senderName || 'User',
+        recipientId: recipientId || '',
+        recipientName: recipientName || '',
+        opportunityTitle: opportunityTitle || null,
+        opportunityId: opportunityId || null,
+        bookingId: bookingId || null,
         status: computedStatus,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date().toISOString(),
       }
@@ -50,27 +75,47 @@ export const setupSocketIO = (io) => {
         try {
           const created = await Message.create({
             conversationId: targetRoom,
-            senderId,
+            senderId: msgData.senderId,
             senderName: msgData.senderName,
+            recipientId: msgData.recipientId,
+            recipientName: msgData.recipientName,
+            opportunityTitle: msgData.opportunityTitle,
+            opportunityId: msgData.opportunityId,
+            bookingId: msgData.bookingId,
             text: msgData.text,
             status: msgData.status,
             timestamp: msgData.timestamp,
           })
           if (created) {
             msgData._id = String(created._id)
+            msgData.id = String(created._id)
           }
         } catch (err) {
           console.error('Error saving socket message to DB:', err)
         }
       }
 
+      inMemoryMessages.push(msgData)
+
       // Broadcast message to everyone in the room (client will match by clientMsgId)
       io.to(`chat:${targetRoom}`).emit('chat:message', msgData)
+
+      // If recipient is not in this chat room but online, notify their personal user room
+      if (recipientId && roomSize <= 1) {
+        io.to(`user:${recipientId}`).emit('chat:notification', {
+          conversationId: targetRoom,
+          senderName: msgData.senderName,
+          text: msgData.text,
+          opportunityTitle: msgData.opportunityTitle,
+        })
+      }
     })
 
     // Typing indicator
     socket.on('chat:typing', ({ roomId, userId, isTyping }) => {
-      socket.to(`chat:${roomId}`).emit('chat:typing', { userId, isTyping })
+      if (roomId) {
+        socket.to(`chat:${roomId}`).emit('chat:typing', { userId, isTyping })
+      }
     })
 
     // Disconnect
@@ -86,3 +131,4 @@ export const setupSocketIO = (io) => {
     })
   })
 }
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, IndianRupee, ChevronRight, Search, Sparkles, AlertCircle } from 'lucide-react'
+import { MapPin, Clock, IndianRupee, ChevronRight, Search, Sparkles, AlertCircle, MessageSquare } from 'lucide-react'
 
 import { API_BASE_URL } from '../api/axios'
 
@@ -18,11 +18,16 @@ export default function Opportunities() {
     setLoading(true)
     setError(null)
     try {
+      const token = localStorage.getItem('sh_token')
+      const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
       let url = `${API_BASE_URL}/opportunities?`
+      if (user._id || user.id) url += `userId=${encodeURIComponent(user._id || user.id)}&`
       if (activeCategory !== 'All') url += `category=${encodeURIComponent(activeCategory)}&`
       if (search) url += `search=${encodeURIComponent(search)}`
 
-      const res = await fetch(url)
+      const res = await fetch(url, { headers })
       const data = await res.json()
       if (data.success) {
         setOpportunities(data.data || [])
@@ -69,7 +74,7 @@ export default function Opportunities() {
         <input
           type="text"
           className="input pl-12 text-lg"
-          placeholder="Search opportunities (e.g. Cooking, Chennai)..."
+          placeholder="Search opportunities (e.g. Cooking, Teaching, Chennai)..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           aria-label="Search opportunities"
@@ -122,11 +127,15 @@ export default function Opportunities() {
         <div className="space-y-4">
           {filtered.map(opp => {
             const oppId = opp._id || opp.id
-            const matchScore = opp.matchPercent || 92
+            const matchScore = typeof opp.matchPercent === 'number' ? opp.matchPercent : 50
+            const isHighMatch = matchScore >= 75
+            const isModerateMatch = matchScore >= 45 && matchScore < 75
+
             return (
               <div
                 key={oppId}
-                className="card w-full text-left hover:shadow-float transition-all duration-150 border-2 hover:border-primary-300 space-y-3"
+                className={`card w-full text-left hover:shadow-float transition-all duration-150 border-2 space-y-3
+                  ${isHighMatch ? 'border-emerald-300 hover:border-emerald-500' : 'border-border hover:border-gray-300'}`}
                 id={`opportunity-${oppId}`}
               >
                 {/* Top header row with Match Badge */}
@@ -140,9 +149,18 @@ export default function Opportunities() {
                     <h3 className="font-bold text-xl text-foreground leading-snug">{opp.title}</h3>
                   </div>
 
-                  {/* AI Match percentage pill */}
+                  {/* AI Match percentage pill - color coded by relevance */}
                   <div className="flex flex-col items-end shrink-0">
-                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-bold text-sm px-3 py-1.5 rounded-full shadow-sm">
+                    <span
+                      className={`inline-flex items-center gap-1 font-bold text-sm px-3 py-1.5 rounded-full shadow-xs
+                        ${
+                          isHighMatch
+                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white'
+                            : isModerateMatch
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-gray-100 text-gray-600 border border-gray-200 text-xs'
+                        }`}
+                    >
                       <Sparkles size={14} /> {matchScore}% Match
                     </span>
                   </div>
@@ -150,8 +168,17 @@ export default function Opportunities() {
 
                 {/* AI Match Reason Banner */}
                 {opp.matchReason && (
-                  <div className="bg-primary-50/80 border border-primary-100 rounded-xl p-3 text-sm text-primary-900 flex items-start gap-2">
-                    <Sparkles size={16} className="text-primary mt-0.5 shrink-0" />
+                  <div
+                    className={`rounded-xl p-3 text-sm flex items-start gap-2 border
+                      ${
+                        isHighMatch
+                          ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                          : isModerateMatch
+                          ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                          : 'bg-gray-50 border-gray-200 text-gray-700'
+                      }`}
+                  >
+                    <Sparkles size={16} className={`mt-0.5 shrink-0 ${isHighMatch ? 'text-emerald-600' : 'text-gray-500'}`} />
                     <p className="font-medium leading-tight">{opp.matchReason}</p>
                   </div>
                 )}
@@ -173,13 +200,39 @@ export default function Opportunities() {
                   <span className="text-xs text-muted flex items-center gap-1">
                     <Clock size={14} /> Posted {opp.posted || 'Recently'}
                   </span>
-                  <button
-                    onClick={() => navigate(`/opportunities/${oppId}`)}
-                    className="btn-primary py-2 px-4 text-sm font-semibold flex items-center gap-1"
-                    id={`view-opp-${oppId}`}
-                  >
-                    View Opportunity <ChevronRight size={16} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+                        const currentUserId = currentUser._id || currentUser.id || 'u_user'
+                        const employerName = opp.clientName || 'Job Provider'
+                        navigate('/chat', {
+                          state: {
+                            conversationId: `opp_${oppId}_${currentUserId}`,
+                            name: employerName,
+                            role: 'Job Provider',
+                            opportunityTitle: opp.title,
+                            opportunityId: oppId,
+                            recipientId: opp.postedById || opp.postedBy || '',
+                            avatar: '💼',
+                            initialDraft: `Namaste ${employerName}, I saw your listing "${opp.title}" and would like to know more details.`,
+                          },
+                        })
+                      }}
+                      className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1 text-primary border-primary/30 hover:bg-primary-50"
+                      id={`chat-opp-${oppId}`}
+                    >
+                      <MessageSquare size={14} /> Inquire
+                    </button>
+                    <button
+                      onClick={() => navigate(`/opportunities/${oppId}`)}
+                      className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1"
+                      id={`view-opp-${oppId}`}
+                    >
+                      View <ChevronRight size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )

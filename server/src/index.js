@@ -4,7 +4,7 @@ import { createServer } from 'http'
 import { Server as SocketServer } from 'socket.io'
 import cors from 'cors'
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+import { globalApiLimiter, authRateLimiter } from './middleware/rateLimiter.js'
 import { connectDB } from './config/db.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import healthRouter  from './routes/health.js'
@@ -54,15 +54,9 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }))
 
-// Rate limiting — generous for hackathon demo
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests. Please wait a few minutes and try again.' },
-})
-app.use('/api/', limiter)
+// ── Global & Specific Rate Limiting ───────────────────
+app.use('/api/', globalApiLimiter)
+app.use('/api/auth', authRateLimiter)
 
 // ── Body Parsing ─────────────────────────────────
 app.use(express.json({ limit: '10mb' }))

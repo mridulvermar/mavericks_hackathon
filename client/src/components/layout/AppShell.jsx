@@ -249,11 +249,12 @@ export default function AppShell() {
           </div>
           <button
             onClick={() => navigate('/chat')}
-            className="p-2 rounded-xl hover:bg-gray-100 min-h-touch min-w-touch flex items-center justify-center relative"
-            aria-label="Notifications"
+            className="p-2 rounded-xl hover:bg-gray-100 min-h-touch min-w-touch flex items-center justify-center relative text-primary"
+            aria-label="Messages"
+            id="btn-nav-messages-header"
           >
-            <Bell size={24} />
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white" aria-hidden="true" />
+            <MessageSquare size={24} />
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" aria-hidden="true" />
           </button>
         </header>
 

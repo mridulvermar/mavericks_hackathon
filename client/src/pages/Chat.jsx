@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Send, ArrowLeft, Phone, Languages, Sparkles, CheckCheck, Check } from 'lucide-react'
+import { Send, ArrowLeft, Phone, Languages, Sparkles, CheckCheck, Check, Briefcase, ExternalLink } from 'lucide-react'
 import { io } from 'socket.io-client'
 
 import { API_BASE_URL, SOCKET_URL } from '../api/axios'
@@ -21,110 +21,165 @@ export default function Chat() {
   const socketRef = useRef(null)
   const bottomRef = useRef(null)
 
+  const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
+  const currentUserId = currentUser._id || currentUser.id || 'u_user'
+  const currentUserName = currentUser.name || (currentUser.role === 'job_provider' ? 'Job Provider' : 'Job Seeker')
+
   // Initialize Socket.IO
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
-    const userId = user._id || user.id || 'u_user'
-
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
     })
 
     socketRef.current.on('connect', () => {
       console.log('⚡ Socket connected to server')
-      socketRef.current.emit('user:join', userId)
+      socketRef.current.emit('user:join', currentUserId)
     })
 
     socketRef.current.on('chat:message', (newMsg) => {
-      setMessages((prevMsgs) => {
-        // Robust check to match existing message
-        const existingIdx = prevMsgs.findIndex((m) => {
-          if (newMsg.clientMsgId && (m.clientMsgId === newMsg.clientMsgId || m._id === newMsg.clientMsgId || m.id === newMsg.clientMsgId)) {
-            return true
-          }
-          if ((m._id && (m._id === newMsg._id || m._id === newMsg.id)) || (m.id && (m.id === newMsg._id || m.id === newMsg.id))) {
-            return true
-          }
-          // Match identical text from same sender sent within last 5 seconds
-          if ((m.senderId && m.senderId === newMsg.senderId) || (m.sender === 'me' && newMsg.senderId === userId)) {
-            if (m.text === newMsg.text) {
+      // If message is for currently open conversation
+      if (activeChat && (newMsg.conversationId === (activeChat._id || activeChat.id) || newMsg.conversationId === activeChat.conversationId)) {
+        setMessages((prevMsgs) => {
+          // Robust check to match existing optimistic message
+          const existingIdx = prevMsgs.findIndex((m) => {
+            if (newMsg.clientMsgId && (m.clientMsgId === newMsg.clientMsgId || m._id === newMsg.clientMsgId || m.id === newMsg.clientMsgId)) {
               return true
             }
-          }
-          return false
-        })
+            if ((m._id && (m._id === newMsg._id || m._id === newMsg.id)) || (m.id && (m.id === newMsg._id || m.id === newMsg.id))) {
+              return true
+            }
+            if ((m.senderId && m.senderId === newMsg.senderId) || (m.sender === 'me' && newMsg.senderId === currentUserId)) {
+              if (m.text === newMsg.text) {
+                return true
+              }
+            }
+            return false
+          })
 
+          if (existingIdx !== -1) {
+            const updated = [...prevMsgs]
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              _id: newMsg._id || updated[existingIdx]._id,
+              id: newMsg._id || updated[existingIdx].id,
+              status: newMsg.status || 'delivered',
+              time: newMsg.timestamp || newMsg.time || updated[existingIdx].time,
+            }
+            return updated
+          }
+          return [...prevMsgs, newMsg]
+        })
+      }
+
+      // Also update conversations list with latest message
+      setConversations((prevConvs) => {
+        const convId = newMsg.conversationId
+        const existingIdx = prevConvs.findIndex((c) => (c._id || c.id || c.conversationId) === convId)
         if (existingIdx !== -1) {
-          const updated = [...prevMsgs]
+          const updated = [...prevConvs]
           updated[existingIdx] = {
             ...updated[existingIdx],
-            _id: newMsg._id || updated[existingIdx]._id,
-            id: newMsg._id || updated[existingIdx].id,
-            status: newMsg.status || 'delivered',
-            time: newMsg.timestamp || newMsg.time || updated[existingIdx].time,
+            lastMsg: newMsg.text,
+            time: newMsg.timestamp || newMsg.time || 'Now',
+            latestTime: Date.now(),
           }
-          return updated
+          return updated.sort((a, b) => (b.latestTime || 0) - (a.latestTime || 0))
+        } else {
+          const newConvItem = {
+            _id: convId,
+            id: convId,
+            conversationId: convId,
+            name: newMsg.senderId === currentUserId ? (newMsg.recipientName || 'Job Provider') : (newMsg.senderName || 'Job Seeker'),
+            role: newMsg.opportunityTitle ? `Job: ${newMsg.opportunityTitle}` : 'Direct Message',
+            opportunityTitle: newMsg.opportunityTitle || null,
+            opportunityId: newMsg.opportunityId || null,
+            lastMsg: newMsg.text,
+            time: newMsg.timestamp || newMsg.time || 'Now',
+            latestTime: Date.now(),
+            avatar: newMsg.opportunityTitle ? '💼' : '💬',
+            online: true,
+          }
+          return [newConvItem, ...prevConvs]
         }
-        return [...prevMsgs, newMsg]
       })
     })
 
     return () => {
       if (socketRef.current) socketRef.current.disconnect()
     }
-  }, [])
+  }, [activeChat, currentUserId])
 
-  // Handle direct navigation via location.state (e.g. from Message button on applications/bookings)
+  // Handle direct navigation via location.state (e.g. from Message Employer button on OpportunityDetail)
   useEffect(() => {
     if (location.state?.conversationId) {
       const convId = location.state.conversationId
       const targetConv = {
         _id: convId,
         id: convId,
-        name: location.state.name || 'Connected User',
-        role: location.state.role || 'Direct Message',
-        avatar: location.state.avatar || '💬',
+        conversationId: convId,
+        name: location.state.name || 'Job Provider',
+        role: location.state.role || (location.state.opportunityTitle ? `Job: ${location.state.opportunityTitle}` : 'Direct Message'),
+        avatar: location.state.avatar || (location.state.opportunityTitle ? '💼' : '💬'),
+        opportunityTitle: location.state.opportunityTitle || null,
+        opportunityId: location.state.opportunityId || null,
+        recipientId: location.state.recipientId || '',
+        recipientName: location.state.name || '',
         online: true,
       }
       setActiveChat(targetConv)
-      setConversations(prev => {
-        if (prev.some(c => (c._id || c.id) === convId)) return prev
+
+      if (location.state.initialDraft) {
+        setInput(location.state.initialDraft)
+      }
+
+      setConversations((prev) => {
+        if (prev.some((c) => (c._id || c.id || c.conversationId) === convId)) {
+          return prev.map((c) => (c._id || c.id || c.conversationId) === convId ? { ...c, ...targetConv } : c)
+        }
         return [targetConv, ...prev]
       })
     }
   }, [location.state])
 
-  // Fetch Conversations
-  useEffect(() => {
-    const fetchConversations = async () => {
-      setLoading(true)
-      setFetchError(false)
-      try {
-        const res = await fetch(`${API_BASE_URL}/chat/conversations`)
-        const data = await res.json()
-        if (data.success && data.data) {
-          setConversations(prev => {
-            const existingIds = new Set(data.data.map(c => c._id || c.id))
-            const customConvs = prev.filter(c => !existingIds.has(c._id || c.id))
-            return [...customConvs, ...data.data]
-          })
-        }
-      } catch (err) {
-        console.error('Error fetching conversations:', err)
-        setFetchError(true)
-      } finally {
-        setLoading(false)
+  // Fetch real Conversations from backend
+  const fetchConversations = async () => {
+    try {
+      const token = localStorage.getItem('sh_token')
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(`${API_BASE_URL}/chat/conversations?userId=${encodeURIComponent(currentUserId)}`, {
+        headers,
+      })
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setConversations((prev) => {
+          const fetchedMap = new Map(data.data.map((c) => [c._id || c.id || c.conversationId, c]))
+          const customActive = prev.filter((c) => !fetchedMap.has(c._id || c.id || c.conversationId))
+          return [...customActive, ...data.data]
+        })
       }
+    } catch (err) {
+      console.error('Error fetching conversations:', err)
+      setFetchError(true)
+    } finally {
+      setLoading(false)
     }
-    fetchConversations()
-  }, [])
+  }
 
-  // Fetch Messages when Active Chat changes
+  // Initial fetch and auto-reload polling for conversations list
+  useEffect(() => {
+    fetchConversations()
+    if (!activeChat) {
+      const convInterval = setInterval(fetchConversations, 3000)
+      return () => clearInterval(convInterval)
+    }
+  }, [activeChat, currentUserId])
+
+  // Fetch Messages and auto-reload polling when Active Chat is open
   useEffect(() => {
     if (!activeChat) return
 
-    const chatId = activeChat._id || activeChat.id || 'c1'
-    if (socketRef.current) {
+    const chatId = activeChat._id || activeChat.id || activeChat.conversationId
+    if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('chat:join', chatId)
     }
 
@@ -132,26 +187,23 @@ export default function Chat() {
       try {
         const res = await fetch(`${API_BASE_URL}/chat/conversations/${chatId}/messages`)
         const data = await res.json()
-        if (data.success && data.data) {
-          // Deduplicate incoming list
-          const seen = new Set()
-          const uniqueList = []
-          for (const m of data.data) {
-            const idKey = String(m._id || m.id || '')
-            const contentKey = `${m.text}_${m.time || m.timestamp}`
-            if (!seen.has(idKey) && !seen.has(contentKey)) {
-              if (idKey) seen.add(idKey)
-              seen.add(contentKey)
-              uniqueList.push(m)
-            }
-          }
-          setMessages(uniqueList)
+        if (data.success && Array.isArray(data.data)) {
+          setMessages((prev) => {
+            const prevSignature = prev.map((m) => `${m._id || m.id || m.clientMsgId}_${m.text}`).join('|')
+            const newSignature = data.data.map((m) => `${m._id || m.id || m.clientMsgId}_${m.text}`).join('|')
+            if (prevSignature === newSignature) return prev
+            return data.data
+          })
         }
       } catch (err) {
         console.error('Error fetching chat messages:', err)
       }
     }
+
     fetchMessages()
+    // Auto-reload polling every 2 seconds for real-time responsiveness
+    const pollInterval = setInterval(fetchMessages, 2000)
+    return () => clearInterval(pollInterval)
   }, [activeChat])
 
   useEffect(() => {
@@ -162,55 +214,56 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!input.trim() || !activeChat) return
 
-    const chatId = activeChat._id || activeChat.id || 'c1'
+    const chatId = activeChat._id || activeChat.id || activeChat.conversationId
     const textToSend = input.trim()
     setInput('')
 
-    const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
-    const currentName = currentUser.name || 'Sunita Ji'
-    const currentId = currentUser._id || currentUser.id || 'u_user'
     const tempId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
-    const tempMsg = {
+    const newMsgPayload = {
       _id: tempId,
       id: tempId,
       clientMsgId: tempId,
       conversationId: chatId,
+      roomId: chatId,
       text: textToSend,
-      senderId: currentId,
+      senderId: currentUserId,
       sender: 'me',
-      senderName: currentName,
+      senderName: currentUserName,
+      recipientId: activeChat.recipientId || '',
+      recipientName: activeChat.name || '',
+      opportunityTitle: activeChat.opportunityTitle || null,
+      opportunityId: activeChat.opportunityId || null,
       status: 'sent',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: new Date().toISOString(),
     }
 
-    // Optimistically add once to messages
-    setMessages((prev) => [...prev, tempMsg])
+    // Optimistically add to messages
+    setMessages((prev) => [...prev, newMsgPayload])
+
+    // Update conversation in list
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => (c._id || c.id || c.conversationId) === chatId)
+      if (idx !== -1) {
+        const copy = [...prev]
+        copy[idx] = { ...copy[idx], lastMsg: textToSend, time: 'Now', latestTime: Date.now() }
+        return copy.sort((a, b) => (b.latestTime || 0) - (a.latestTime || 0))
+      }
+      return [{ ...activeChat, lastMsg: textToSend, time: 'Now', latestTime: Date.now() }, ...prev]
+    })
 
     // Real-time broadcast via Socket.IO
     if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('chat:message', {
-        clientMsgId: tempId,
-        roomId: chatId,
-        conversationId: chatId,
-        text: textToSend,
-        senderId: currentId,
-        senderName: currentName,
-      })
+      socketRef.current.emit('chat:message', newMsgPayload)
     } else {
       // Fallback only if socket disconnected
       try {
         const res = await fetch(`${API_BASE_URL}/chat/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientMsgId: tempId,
-            conversationId: chatId,
-            text: textToSend,
-            senderName: currentName,
-            senderId: currentId,
-          }),
+          body: JSON.stringify(newMsgPayload),
         })
         const data = await res.json()
         if (data.success && data.data) {
@@ -227,18 +280,17 @@ export default function Chat() {
   // Per-Message Opt-In AI Translation Handler
   const handleTranslateMessage = async (msgId, text) => {
     if (translations[msgId]) {
-      // Toggle off translation if already translated
       setTranslations((prev) => {
         const copy = { ...prev }
         delete copy[msgId]
         return copy
       })
-      setTranslationErrors((prev) => { const c = {...prev}; delete c[msgId]; return c })
+      setTranslationErrors((prev) => { const c = { ...prev }; delete c[msgId]; return c })
       return
     }
 
     setTranslatingId(msgId)
-    setTranslationErrors((prev) => { const c = {...prev}; delete c[msgId]; return c })
+    setTranslationErrors((prev) => { const c = { ...prev }; delete c[msgId]; return c })
     try {
       const res = await fetch(`${API_BASE_URL}/ai/translate`, {
         method: 'POST',
@@ -266,7 +318,7 @@ export default function Chat() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">💬 Messages</h1>
-            <p className="text-muted text-sm mt-0.5">Real-time chats with clients & employers</p>
+            <p className="text-muted text-sm mt-0.5">Real-time chats with job applicants & employers</p>
           </div>
         </div>
 
@@ -277,22 +329,24 @@ export default function Chat() {
             ))}
           </div>
         ) : conversations.length === 0 ? (
-          <div className="empty-state card py-12">
+          <div className="empty-state card py-12 text-center space-y-3">
             <span className="text-5xl mb-2">💬</span>
             <h3 className="font-bold text-xl text-foreground">No conversations yet</h3>
-            <p className="text-muted">Apply for work or list services to chat with clients.</p>
+            <p className="text-muted max-w-sm mx-auto">
+              Message job applicants or employers to ask for details and discuss requirements in real-time.
+            </p>
             <button
               onClick={() => navigate('/opportunities')}
               className="btn-primary mt-2"
               id="btn-find-work-chat"
             >
-              Find Work
+              Explore Opportunities
             </button>
           </div>
         ) : (
           <div className="card divide-y divide-border p-0 overflow-hidden shadow-card">
             {conversations.map((c) => {
-              const cId = c._id || c.id
+              const cId = c._id || c.id || c.conversationId
               return (
                 <button
                   key={cId}
@@ -317,11 +371,11 @@ export default function Chat() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-foreground text-base">{c.name}</p>
-                      <p className="text-xs text-muted font-medium">{c.time || '10:00 AM'}</p>
+                      <p className="font-bold text-foreground text-base truncate">{c.name}</p>
+                      <p className="text-xs text-muted font-medium shrink-0">{c.time || '10:00 AM'}</p>
                     </div>
-                    <p className="text-xs text-primary font-semibold truncate">{c.role || 'Client'}</p>
-                    <p className="text-muted text-sm truncate mt-1">{c.lastMsg || 'Tap to view messages'}</p>
+                    <p className="text-xs text-primary font-semibold truncate">{c.role || 'Chat'}</p>
+                    <p className="text-muted text-sm truncate mt-1">{c.lastMsg || 'Tap to view conversation'}</p>
                   </div>
                 </button>
               )
@@ -334,11 +388,11 @@ export default function Chat() {
 
   // Active Chat Room View
   return (
-    <div className="flex flex-col h-screen max-h-screen pb-20 lg:pb-0">
+    <div className="flex flex-col h-screen max-h-screen pb-20 lg:pb-0 bg-[#efeae2]/30">
       {/* Header */}
       <div className="sticky top-0 bg-white border-b border-border px-4 py-3 flex items-center gap-3 z-10 shadow-xs">
         <button
-          onClick={() => setActiveChat(null)}
+          onClick={() => { setActiveChat(null); fetchConversations() }}
           className="p-2 rounded-xl hover:bg-gray-100 min-h-touch min-w-touch"
           aria-label="Back"
           id="btn-back-chat"
@@ -355,15 +409,15 @@ export default function Chat() {
           )}
         </div>
 
-        <div className="flex-1">
-          <p className="font-bold text-foreground text-base leading-tight">{activeChat.name}</p>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-foreground text-base leading-tight truncate">{activeChat.name}</p>
           <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" /> Online
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" /> Online • {activeChat.role || 'Direct Message'}
           </p>
         </div>
 
         <button
-          onClick={() => alert(`Call feature placeholder for ${activeChat.name}`)}
+          onClick={() => alert(`Direct call feature with ${activeChat.name}`)}
           className="p-2 rounded-xl hover:bg-gray-100 min-h-touch min-w-touch"
           aria-label="Call"
         >
@@ -371,81 +425,125 @@ export default function Chat() {
         </button>
       </div>
 
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-background">
-        {messages.map((msg) => {
-          const msgId = msg._id || msg.id
-          const currentUser = JSON.parse(localStorage.getItem('sh_user') || '{}')
-          const currentUserId = currentUser._id || currentUser.id || 'me'
-          const isMe = msg.senderId === currentUserId || msg.sender === 'me'
-          const hasTranslation = translations[msgId]
-          const isTranslating = translatingId === msgId
-
-          return (
-            <div
-              key={msgId}
-              className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+      {/* Opportunity Context Banner (if chatting about a specific job posting) */}
+      {activeChat.opportunityTitle && (
+        <div className="bg-primary-50 border-b border-primary-200/60 px-4 py-2.5 flex items-center justify-between gap-3 text-xs sm:text-sm animate-fadeIn">
+          <div className="flex items-center gap-2 text-primary-900 truncate">
+            <Briefcase size={16} className="text-primary shrink-0" />
+            <span className="font-bold">Inquiring about:</span>
+            <span className="truncate font-medium">{activeChat.opportunityTitle}</span>
+          </div>
+          {activeChat.opportunityId && (
+            <button
+              onClick={() => navigate(`/opportunities/${activeChat.opportunityId}`)}
+              className="text-primary font-bold hover:underline shrink-0 text-xs flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-primary/20"
+              id="btn-view-job-from-chat"
             >
+              Job Details <ExternalLink size={12} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Messages Scroll Area - WhatsApp style (Sender on Right, Receiver on Left) */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#f8f9fa]">
+        {messages.length === 0 ? (
+          <div className="py-12 text-center space-y-2 text-muted">
+            <p className="text-4xl">💬</p>
+            <p className="font-semibold text-foreground">Start the conversation</p>
+            <p className="text-xs max-w-xs mx-auto">Send a message to ask about timings, requirements, and job details.</p>
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const msgId = msg._id || msg.id || msg.clientMsgId
+            const currentIdStr = String(currentUserId || '')
+            const msgSenderIdStr = String(msg.senderId || '')
+            
+            // Sender is Me if senderId matches currentUserId or sender is explicitly 'me' with matching name
+            const isMe = (msgSenderIdStr && msgSenderIdStr === currentIdStr) || 
+                         (!msgSenderIdStr && msg.sender === 'me') ||
+                         (msg.senderName && msg.senderName === currentUserName && (!msg.recipientName || msg.recipientName === activeChat.name))
+
+            const hasTranslation = translations[msgId]
+            const isTranslating = translatingId === msgId
+
+            return (
               <div
-                className={`max-w-[82%] px-4 py-3 rounded-2xl text-base space-y-1.5 shadow-xs
-                  ${isMe ? 'bg-primary text-white rounded-br-xs' : 'bg-white text-foreground border border-border rounded-bl-xs'}`}
+                key={msgId}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
               >
-                <p className="leading-relaxed">{msg.text}</p>
-
-                {/* Inline Translation Display */}
-                {hasTranslation && (
-                  <div
-                    className={`mt-2 pt-2 border-t text-sm ${
-                      isMe ? 'border-white/30 text-emerald-100' : 'border-gray-200 text-emerald-800'
-                    } bg-emerald-950/10 p-2 rounded-xl flex items-start gap-1.5`}
-                  >
-                    <Sparkles size={14} className="shrink-0 mt-0.5 text-emerald-500" />
-                    <div>
-                      <p className="font-bold text-xs opacity-90">Tamil Translation:</p>
-                      <p className="font-medium text-sm leading-snug">{hasTranslation}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Timestamp & Ticks & Opt-In Translate Button */}
                 <div
-                  className={`flex items-center justify-between gap-3 text-xs pt-1 ${
-                    isMe ? 'text-white/80' : 'text-muted'
-                  }`}
-                >
-                  <span className="flex items-center gap-1">
-                    {msg.time || msg.timestamp || 'Now'}
-                    {isMe && (
-                      msg.status === 'read' ? (
-                        <CheckCheck size={14} className="text-sky-300" />
-                      ) : msg.status === 'delivered' ? (
-                        <CheckCheck size={14} className="text-white/70" />
-                      ) : (
-                        <Check size={14} className="text-white/50" />
-                      )
-                    )}
-                  </span>
-
-                  <button
-                    onClick={() => handleTranslateMessage(msgId, msg.text)}
-                    disabled={isTranslating}
-                    className={`font-semibold underline flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${
-                      isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-gray-100 text-primary'
+                  className={`max-w-[80%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl text-base space-y-1.5 shadow-xs transition-all
+                    ${
+                      isMe
+                        ? 'bg-primary text-white rounded-tr-none self-end'
+                        : 'bg-white text-foreground border border-gray-200/80 rounded-tl-none self-start'
                     }`}
-                    id={`translate-msg-${msgId}`}
+                >
+                  {/* Sender Name Header for received messages (Left side) */}
+                  {!isMe && (
+                    <p className="text-xs font-bold text-primary mb-0.5">
+                      {msg.senderName || activeChat.name || 'Job Applicant'}
+                    </p>
+                  )}
+
+                  <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+
+                  {/* Inline Translation Display */}
+                  {hasTranslation && (
+                    <div
+                      className={`mt-2 pt-2 border-t text-sm ${
+                        isMe ? 'border-white/30 text-emerald-100' : 'border-gray-200 text-emerald-800'
+                      } bg-emerald-950/10 p-2 rounded-xl flex items-start gap-1.5`}
+                    >
+                      <Sparkles size={14} className="shrink-0 mt-0.5 text-emerald-500" />
+                      <div>
+                        <p className="font-bold text-xs opacity-90">Tamil Translation:</p>
+                        <p className="font-medium text-sm leading-snug">{hasTranslation}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timestamp & Ticks & Opt-In Translate Button */}
+                  <div
+                    className={`flex items-center justify-between gap-3 text-xs pt-0.5 ${
+                      isMe ? 'text-white/80' : 'text-muted'
+                    }`}
                   >
-                    <Languages size={13} />
-                    {isTranslating
-                      ? 'Translating...'
-                      : hasTranslation
-                      ? 'Original'
-                      : '🌐 Translate'}
-                  </button>
+                    <span className="flex items-center gap-1">
+                      {msg.time || msg.timestamp || 'Now'}
+                      {isMe && (
+                        msg.status === 'read' ? (
+                          <CheckCheck size={14} className="text-sky-300" />
+                        ) : msg.status === 'delivered' ? (
+                          <CheckCheck size={14} className="text-white/80" />
+                        ) : (
+                          <Check size={14} className="text-white/60" />
+                        )
+                      )}
+                    </span>
+
+                    <button
+                      onClick={() => handleTranslateMessage(msgId, msg.text)}
+                      disabled={isTranslating}
+                      className={`font-semibold underline flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${
+                        isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-gray-100 text-primary'
+                      }`}
+                      id={`translate-msg-${msgId}`}
+                    >
+                      <Languages size={13} />
+                      {isTranslating
+                        ? 'Translating...'
+                        : hasTranslation
+                        ? 'Original'
+                        : '🌐 Translate'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -474,3 +572,4 @@ export default function Chat() {
     </div>
   )
 }
+

@@ -10,22 +10,22 @@ import { demoOpportunities } from '../seed.js'
 
 const router = Router()
 
-// Default fallback demo user profile for scoring
-const DEFAULT_DEMO_USER = {
-  name: 'Lakshmi Ammal',
+// Default neutral fallback profile if unauthenticated
+const DEFAULT_NEUTRAL_PROFILE = {
+  name: 'User',
   city: 'Chennai',
-  skills: ['Cooking', 'Catering', 'Tailoring'],
+  skills: [],
   languages: ['Tamil', 'English'],
 }
 
-// ── GET /api/opportunities (List & Search with AI Match Scores) ─────
+// ── GET /api/opportunities (List & Search with Contextual AI Match Scores) ─────
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const { category, search, userId } = req.query
     let rawOpps = []
 
-    // Fetch user profile if logged in or specified by query
-    let userProfile = DEFAULT_DEMO_USER
+    // Fetch real user profile if logged in or specified by query
+    let userProfile = DEFAULT_NEUTRAL_PROFILE
     if (req.user) {
       userProfile = req.user
     } else if (userId && mongoose.connection.readyState === 1) {
@@ -212,7 +212,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Opportunity not found.' })
     }
 
-    const scored = scoreOpportunity(opp, req.user || DEFAULT_DEMO_USER)
+    let userProfile = DEFAULT_NEUTRAL_PROFILE
+    if (req.user) {
+      userProfile = req.user
+    } else if (req.query.userId && mongoose.connection.readyState === 1) {
+      const found = await User.findById(req.query.userId).lean()
+      if (found) userProfile = found
+    }
+
+    const scored = scoreOpportunity(opp, userProfile)
     res.json({ success: true, data: scored })
   } catch (error) {
     console.error('Error fetching opportunity detail:', error)
