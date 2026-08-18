@@ -1,0 +1,8 @@
+{
+  "name": "career2-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && npm start"
+  }
+}
