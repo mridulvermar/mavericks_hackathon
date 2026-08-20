@@ -45,7 +45,7 @@ export const cloudServicesRateLimiter = rateLimit({
  */
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 25, // Max 25 attempts per 15 minutes per IP
+  max: 100, // Increased to 100 requests to prevent demo locking
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -60,7 +60,7 @@ export const authRateLimiter = rateLimit({
  */
 export const globalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Max 300 requests per 15 minutes per IP
+  max: 2000, // Increased to 2000 to accommodate client polling of notifications and chats
   standardHeaders: true,
   legacyHeaders: false,
   message: {
