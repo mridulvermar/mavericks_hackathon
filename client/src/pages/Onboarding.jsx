@@ -231,7 +231,7 @@ export default function Onboarding() {
                 <input
                   type="text"
                   className="input text-lg"
-                  placeholder="e.g. Jaipur, Rajasthan"
+                  placeholder="Enter your city"
                   value={formData.location}
                   onChange={e => setFormData(f => ({ ...f, location: e.target.value }))}
                 />
@@ -244,7 +244,7 @@ export default function Onboarding() {
                 <input
                   type="number"
                   className="input text-lg"
-                  placeholder="e.g. 62"
+                  placeholder="Enter your age"
                   value={formData.age}
                   onChange={e => setFormData(f => ({ ...f, age: e.target.value }))}
                 />
