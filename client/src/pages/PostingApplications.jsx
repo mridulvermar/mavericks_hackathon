@@ -187,15 +187,24 @@ export default function PostingApplications() {
                   )}
                   {statusKey !== 'pending' && (
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        const seekerId = app.applicantId || app.id || app._id
+                        const oppId = app.opportunityId || id
+                        const applicantName = app.applicantName || app.providerName || 'Applicant'
                         navigate('/chat', {
                           state: {
-                            conversationId: `conv_${appId}`,
-                            name: app.providerName || 'Applicant',
-                            role: 'Applicant',
+                            conversationId: `opp_${oppId}_${seekerId}`,
+                            name: applicantName,
+                            role: `Applicant • ${postingTitle}`,
+                            opportunityTitle: postingTitle,
+                            opportunityId: oppId,
+                            recipientId: seekerId,
+                            recipientName: applicantName,
+                            avatar: '👤',
+                            initialDraft: `Namaste ${applicantName}, I am reviewing your application for "${postingTitle}".`,
                           },
                         })
-                      }
+                      }}
                       className="btn-secondary text-primary border-primary/30 hover:bg-primary-50 py-2 px-3.5 text-xs font-bold flex items-center gap-1.5"
                       id={`btn-message-${appId}`}
                     >

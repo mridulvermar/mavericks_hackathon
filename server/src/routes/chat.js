@@ -10,77 +10,107 @@ const router = Router()
 export const inMemoryMessages = []
 
 // Helper to format conversation summary from a list of messages
-function buildConversationsList(messages, currentUserId) {
+function buildConversationsList(messages, currentUserId, currentUserName) {
   const convMap = new Map()
 
+  // First pass: group messages by conversationId
   for (const m of messages) {
     const convId = m.conversationId
     if (!convId) continue
 
-    const existing = convMap.get(convId)
-    const mTime = new Date(m.createdAt || Date.now()).getTime()
-
-    // Determine other party name
-    let otherName = ''
-    if (currentUserId) {
-      if (String(m.senderId) === String(currentUserId)) {
-        otherName = m.recipientName || ''
-      } else {
-        otherName = m.senderName || ''
-      }
-    } else {
-      otherName = m.recipientName || m.senderName || ''
+    if (!convMap.has(convId)) {
+      convMap.set(convId, [])
     }
-
-    if (!existing || mTime > existing.latestTime) {
-      let otherRole = 'Direct Message'
-      if (m.opportunityTitle) {
-        otherRole = `Job: ${m.opportunityTitle}`
-      }
-
-      convMap.set(convId, {
-        _id: convId,
-        id: convId,
-        conversationId: convId,
-        name: otherName || existing?.name || (m.opportunityTitle ? (String(m.senderId) === String(currentUserId) ? 'Job Provider' : 'Job Applicant') : 'Contact'),
-        role: otherRole,
-        opportunityTitle: m.opportunityTitle || existing?.opportunityTitle || null,
-        opportunityId: m.opportunityId || existing?.opportunityId || null,
-        recipientId: m.recipientId || existing?.recipientId || '',
-        recipientName: m.recipientName || existing?.recipientName || '',
-        senderId: m.senderId || existing?.senderId || '',
-        senderName: m.senderName || existing?.senderName || '',
-        lastMsg: m.text,
-        time: m.timestamp || new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        latestTime: mTime,
-        unread: 0,
-        avatar: m.opportunityTitle ? '💼' : '👤',
-        online: true,
-      })
-    } else if (otherName && (!existing.name || existing.name === 'Job Seeker' || existing.name === 'Job Provider' || existing.name === 'Connected User' || existing.name === 'Contact')) {
-      existing.name = otherName
-    }
+    convMap.get(convId).push(m)
   }
 
-  // Count unreads for current user if applicable
-  if (currentUserId) {
-    for (const m of messages) {
-      if (String(m.recipientId) === String(currentUserId) && m.status !== 'read') {
-        const item = convMap.get(m.conversationId)
-        if (item) {
-          item.unread = (item.unread || 0) + 1
+  const result = []
+
+  for (const [convId, group] of convMap.entries()) {
+    // Sort chronological: oldest first, newest last
+    group.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+    const latestMsg = group[group.length - 1]
+    const mTime = new Date(latestMsg.createdAt || Date.now()).getTime()
+
+    // Determine opposite member's name and ID across the whole conversation thread
+    let otherName = ''
+    let otherId = ''
+    const currentIdStr = String(currentUserId || '').trim()
+    const myNameStr = String(currentUserName || '').trim().toLowerCase()
+
+    for (const m of group) {
+      const sId = String(m.senderId || '').trim()
+      const rId = String(m.recipientId || '').trim()
+      const sName = String(m.senderName || '').trim()
+      const rName = String(m.recipientName || '').trim()
+
+      if (currentIdStr && sId && sId !== currentIdStr) {
+        if (sName && sName.toLowerCase() !== myNameStr) otherName = sName
+        if (sId) otherId = sId
+      } else if (currentIdStr && rId && rId !== currentIdStr) {
+        if (rName && rName.toLowerCase() !== myNameStr) otherName = rName
+        if (rId) otherId = rId
+      } else if (sName && myNameStr && sName.toLowerCase() !== myNameStr) {
+        otherName = sName
+      } else if (rName && myNameStr && rName.toLowerCase() !== myNameStr) {
+        otherName = rName
+      }
+    }
+
+    // Default fallback if opposite name wasn't captured in message sender/recipient
+    if (!otherName) {
+      if (latestMsg.recipientName && String(latestMsg.senderId) === currentIdStr) {
+        otherName = latestMsg.recipientName
+      } else if (latestMsg.senderName && String(latestMsg.senderId) !== currentIdStr) {
+        otherName = latestMsg.senderName
+      } else {
+        otherName = latestMsg.opportunityTitle ? 'Job Contact' : 'Direct Contact'
+      }
+    }
+
+    let otherRole = 'Direct Message'
+    if (latestMsg.opportunityTitle) {
+      otherRole = `Job: ${latestMsg.opportunityTitle}`
+    }
+
+    // Count unread messages
+    let unreadCount = 0
+    if (currentIdStr) {
+      for (const m of group) {
+        if (String(m.recipientId) === currentIdStr && m.status !== 'read') {
+          unreadCount++
         }
       }
     }
+
+    result.push({
+      _id: convId,
+      id: convId,
+      conversationId: convId,
+      name: otherName,
+      otherUserId: otherId,
+      role: otherRole,
+      opportunityTitle: latestMsg.opportunityTitle || null,
+      opportunityId: latestMsg.opportunityId || null,
+      recipientId: otherId || latestMsg.recipientId || '',
+      recipientName: otherName,
+      lastMsg: latestMsg.text,
+      time: latestMsg.timestamp || latestMsg.time || new Date(latestMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      latestTime: mTime,
+      unread: unreadCount,
+      avatar: latestMsg.opportunityTitle ? '💼' : '👤',
+      online: true,
+    })
   }
 
-  return Array.from(convMap.values()).sort((a, b) => b.latestTime - a.latestTime)
+  return result.sort((a, b) => b.latestTime - a.latestTime)
 }
 
 // ── GET /api/chat/conversations ──────────────────────────────────────
 router.get('/conversations', optionalAuth, async (req, res) => {
   try {
     const currentUserId = req.user?.id || req.query.userId || null
+    const currentUserName = req.user?.name || req.query.userName || null
     let messages = []
 
     if (mongoose.connection.readyState === 1) {
@@ -102,7 +132,7 @@ router.get('/conversations', optionalAuth, async (req, res) => {
       })
     }
 
-    const conversations = buildConversationsList(messages, currentUserId)
+    const conversations = buildConversationsList(messages, currentUserId, currentUserName)
 
     res.json({
       success: true,
@@ -223,6 +253,15 @@ router.post('/messages', optionalAuth, async (req, res) => {
     }
 
     inMemoryMessages.push(newMsg)
+
+    // Broadcast through socket if available
+    const io = req.app.get('io')
+    if (io) {
+      io.to(`chat:${roomId}`).emit('chat:message', newMsg)
+      if (newMsg.recipientId) {
+        io.to(`user:${newMsg.recipientId}`).emit('chat:message', newMsg)
+      }
+    }
 
     res.status(201).json({ success: true, data: newMsg })
   } catch (error) {

@@ -34,11 +34,16 @@ export default function Chat() {
     socketRef.current.on('connect', () => {
       console.log('⚡ Socket connected to server')
       socketRef.current.emit('user:join', currentUserId)
+      if (activeChat) {
+        const activeConvId = activeChat._id || activeChat.id || activeChat.conversationId
+        if (activeConvId) socketRef.current.emit('chat:join', activeConvId)
+      }
     })
 
     socketRef.current.on('chat:message', (newMsg) => {
       // If message is for currently open conversation
-      if (activeChat && (newMsg.conversationId === (activeChat._id || activeChat.id) || newMsg.conversationId === activeChat.conversationId)) {
+      const activeConvId = activeChat?._id || activeChat?.id || activeChat?.conversationId
+      if (activeChat && (newMsg.conversationId === activeConvId || (newMsg.roomId && newMsg.roomId === activeConvId))) {
         setMessages((prevMsgs) => {
           // Robust check to match existing optimistic message
           const existingIdx = prevMsgs.findIndex((m) => {
@@ -48,10 +53,8 @@ export default function Chat() {
             if ((m._id && (m._id === newMsg._id || m._id === newMsg.id)) || (m.id && (m.id === newMsg._id || m.id === newMsg.id))) {
               return true
             }
-            if ((m.senderId && m.senderId === newMsg.senderId) || (m.sender === 'me' && newMsg.senderId === currentUserId)) {
-              if (m.text === newMsg.text) {
-                return true
-              }
+            if (m.text === newMsg.text && (String(m.senderId) === String(newMsg.senderId) || (m.sender === 'me' && String(newMsg.senderId) === String(currentUserId)))) {
+              return true
             }
             return false
           })
@@ -60,6 +63,7 @@ export default function Chat() {
             const updated = [...prevMsgs]
             updated[existingIdx] = {
               ...updated[existingIdx],
+              ...newMsg,
               _id: newMsg._id || updated[existingIdx]._id,
               id: newMsg._id || updated[existingIdx].id,
               status: newMsg.status || 'delivered',
@@ -75,6 +79,10 @@ export default function Chat() {
       setConversations((prevConvs) => {
         const convId = newMsg.conversationId
         const existingIdx = prevConvs.findIndex((c) => (c._id || c.id || c.conversationId) === convId)
+        const otherPartyName = String(newMsg.senderId) === String(currentUserId)
+          ? (newMsg.recipientName || 'Job Contact')
+          : (newMsg.senderName || 'Job Contact')
+
         if (existingIdx !== -1) {
           const updated = [...prevConvs]
           updated[existingIdx] = {
@@ -82,6 +90,7 @@ export default function Chat() {
             lastMsg: newMsg.text,
             time: newMsg.timestamp || newMsg.time || 'Now',
             latestTime: Date.now(),
+            name: updated[existingIdx].name && updated[existingIdx].name !== currentUserName ? updated[existingIdx].name : otherPartyName,
           }
           return updated.sort((a, b) => (b.latestTime || 0) - (a.latestTime || 0))
         } else {
@@ -89,7 +98,7 @@ export default function Chat() {
             _id: convId,
             id: convId,
             conversationId: convId,
-            name: newMsg.senderId === currentUserId ? (newMsg.recipientName || 'Job Provider') : (newMsg.senderName || 'Job Seeker'),
+            name: otherPartyName,
             role: newMsg.opportunityTitle ? `Job: ${newMsg.opportunityTitle}` : 'Direct Message',
             opportunityTitle: newMsg.opportunityTitle || null,
             opportunityId: newMsg.opportunityId || null,
@@ -107,9 +116,9 @@ export default function Chat() {
     return () => {
       if (socketRef.current) socketRef.current.disconnect()
     }
-  }, [activeChat, currentUserId])
+  }, [activeChat, currentUserId, currentUserName])
 
-  // Handle direct navigation via location.state (e.g. from Message Employer button on OpportunityDetail)
+  // Handle direct navigation via location.state (e.g. from Message button)
   useEffect(() => {
     if (location.state?.conversationId) {
       const convId = location.state.conversationId
@@ -117,13 +126,13 @@ export default function Chat() {
         _id: convId,
         id: convId,
         conversationId: convId,
-        name: location.state.name || 'Job Provider',
+        name: location.state.name || (currentUser.role === 'job_provider' ? 'Job Seeker' : 'Job Provider'),
         role: location.state.role || (location.state.opportunityTitle ? `Job: ${location.state.opportunityTitle}` : 'Direct Message'),
         avatar: location.state.avatar || (location.state.opportunityTitle ? '💼' : '💬'),
         opportunityTitle: location.state.opportunityTitle || null,
         opportunityId: location.state.opportunityId || null,
         recipientId: location.state.recipientId || '',
-        recipientName: location.state.name || '',
+        recipientName: location.state.name || location.state.recipientName || '',
         online: true,
       }
       setActiveChat(targetConv)
@@ -146,7 +155,7 @@ export default function Chat() {
     try {
       const token = localStorage.getItem('sh_token')
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`${API_BASE_URL}/chat/conversations?userId=${encodeURIComponent(currentUserId)}`, {
+      const res = await fetch(`${API_BASE_URL}/chat/conversations?userId=${encodeURIComponent(currentUserId)}&userName=${encodeURIComponent(currentUser.name || '')}`, {
         headers,
       })
       const data = await res.json()
@@ -386,6 +395,23 @@ export default function Chat() {
     )
   }
 
+  // Get opposite party's display name accurately
+  const getOppositePartyName = () => {
+    const myName = (currentUser.name || '').trim().toLowerCase()
+    if (activeChat?.name && activeChat.name.trim().toLowerCase() !== myName) {
+      return activeChat.name
+    }
+    for (const m of messages) {
+      const sName = (m.senderName || '').trim()
+      const rName = (m.recipientName || '').trim()
+      if (sName && sName.toLowerCase() !== myName) return sName
+      if (rName && rName.toLowerCase() !== myName) return rName
+    }
+    return activeChat?.recipientName || (currentUser.role === 'job_provider' ? 'Job Seeker' : 'Job Provider')
+  }
+
+  const oppositePartyName = activeChat ? getOppositePartyName() : ''
+
   // Active Chat Room View
   return (
     <div className="flex flex-col h-screen max-h-screen pb-20 lg:pb-0 bg-[#efeae2]/30">
@@ -410,14 +436,14 @@ export default function Chat() {
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-foreground text-base leading-tight truncate">{activeChat.name}</p>
+          <p className="font-bold text-foreground text-base leading-tight truncate">{oppositePartyName}</p>
           <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" /> Online • {activeChat.role || 'Direct Message'}
           </p>
         </div>
 
         <button
-          onClick={() => alert(`Direct call feature with ${activeChat.name}`)}
+          onClick={() => alert(`Direct call feature with ${oppositePartyName}`)}
           className="p-2 rounded-xl hover:bg-gray-100 min-h-touch min-w-touch"
           aria-label="Call"
         >
@@ -456,13 +482,20 @@ export default function Chat() {
         ) : (
           messages.map((msg) => {
             const msgId = msg._id || msg.id || msg.clientMsgId
-            const currentIdStr = String(currentUserId || '')
-            const msgSenderIdStr = String(msg.senderId || '')
+            const myIdStr = String(currentUserId || '').trim()
+            const myNameStr = String(currentUser.name || currentUserName || '').trim().toLowerCase()
+            const msgSenderIdStr = String(msg.senderId || '').trim()
+            const msgSenderNameStr = String(msg.senderName || '').trim().toLowerCase()
             
-            // Sender is Me if senderId matches currentUserId or sender is explicitly 'me' with matching name
-            const isMe = (msgSenderIdStr && msgSenderIdStr === currentIdStr) || 
-                         (!msgSenderIdStr && msg.sender === 'me') ||
-                         (msg.senderName && msg.senderName === currentUserName && (!msg.recipientName || msg.recipientName === activeChat.name))
+            // Accurate determination of whether current user is the sender
+            let isMe = false
+            if (msgSenderIdStr && myIdStr && msgSenderIdStr !== 'u_user' && myIdStr !== 'u_user') {
+              isMe = (msgSenderIdStr === myIdStr)
+            } else if (msgSenderNameStr && myNameStr) {
+              isMe = (msgSenderNameStr === myNameStr)
+            } else if (msg.sender === 'me') {
+              isMe = true
+            }
 
             const hasTranslation = translations[msgId]
             const isTranslating = translatingId === msgId
@@ -480,10 +513,10 @@ export default function Chat() {
                         : 'bg-white text-foreground border border-gray-200/80 rounded-tl-none self-start'
                     }`}
                 >
-                  {/* Sender Name Header for received messages (Left side) */}
+                  {/* Sender Name Header for received messages (Left side only) */}
                   {!isMe && (
                     <p className="text-xs font-bold text-primary mb-0.5">
-                      {msg.senderName || activeChat.name || 'Job Applicant'}
+                      {msg.senderName || oppositePartyName || 'Applicant'}
                     </p>
                   )}
 

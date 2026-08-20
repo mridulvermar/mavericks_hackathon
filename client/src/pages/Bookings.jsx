@@ -297,13 +297,21 @@ export default function Bookings() {
                   {/* Visible Message Button with Icon + Text on all cards */}
                   <button
                     onClick={() => {
-                      const convId = `conv_${bId}`
-                      const targetName = role === 'provider' ? (b.customerName || 'Job Provider') : (b.providerName || 'Provider')
+                      const seekerId = b.customerId || b.customer
+                      const convId = (b.itemType === 'opportunity' && b.itemId && seekerId)
+                        ? `opp_${b.itemId}_${seekerId}`
+                        : `conv_${bId}`
+                      const targetName = role === 'provider' ? (b.customerName || 'Customer') : (b.providerName || 'Provider')
                       navigate('/chat', {
                         state: {
                           conversationId: convId,
                           name: targetName,
-                          role: role === 'provider' ? 'Job Provider' : 'Service Provider',
+                          role: role === 'provider' ? 'Customer / Applicant' : 'Provider / Employer',
+                          opportunityTitle: b.title,
+                          opportunityId: b.itemId,
+                          recipientId: role === 'provider' ? (b.customerId || '') : (b.providerId || ''),
+                          recipientName: targetName,
+                          avatar: b.icon || '💼',
                         },
                       })
                     }}

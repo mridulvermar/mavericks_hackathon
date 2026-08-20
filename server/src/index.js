@@ -77,6 +77,7 @@ const io = new SocketServer(httpServer, {
   },
 })
 setupSocketIO(io)
+app.set('io', io)
 
 // ── Async Server Initialization ───────────────────
 httpServer.on('error', (err) => {

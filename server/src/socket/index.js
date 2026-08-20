@@ -111,14 +111,20 @@ export const setupSocketIO = (io) => {
       // Broadcast message to everyone in the room (client will match by clientMsgId)
       io.to(`chat:${targetRoom}`).emit('chat:message', msgData)
 
-      // If recipient is not in this chat room but online, notify their personal user room
-      if (recipientId && roomSize <= 1) {
+      // Also directly emit chat:message to recipient's personal user room so their conversation list & active chat update in real time
+      if (recipientId) {
+        io.to(`user:${recipientId}`).emit('chat:message', msgData)
         io.to(`user:${recipientId}`).emit('chat:notification', {
           conversationId: targetRoom,
           senderName: msgData.senderName,
           text: msgData.text,
           opportunityTitle: msgData.opportunityTitle,
         })
+      }
+
+      // Also notify sender's personal room for other tabs
+      if (senderId) {
+        io.to(`user:${senderId}`).emit('chat:message', msgData)
       }
     })
 

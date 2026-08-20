@@ -173,17 +173,25 @@ router.get('/:id/applications', authenticate, async (req, res) => {
     res.json({
       success: true,
       postingTitle: posting.title,
-      data: applications.map(app => ({
-        _id: app._id || app.id,
-        id: app._id || app.id,
-        providerName: app.providerName || 'Unknown Applicant',
-        providerSkills: app.skills || app.providerSkills || [],
-        bio: app.bio || app.notes || '',
-        status: app.status || 'pending',
-        date: app.date || new Date(app.createdAt).toLocaleDateString('en-IN'),
-        pay: app.pay || posting.pay,
-        icon: app.icon || '👤',
-      })),
+      data: applications.map(app => {
+        const applicantName = app.customerName || app.applicantName || app.providerName || 'Applicant'
+        const applicantId = app.customerId || app.customer || app.applicantId || app._id || app.id
+        return {
+          _id: app._id || app.id,
+          id: app._id || app.id,
+          providerName: applicantName,
+          applicantName,
+          applicantId: String(applicantId),
+          providerSkills: app.skills || app.providerSkills || [],
+          bio: app.bio || app.notes || '',
+          status: app.status || 'pending',
+          date: app.date || new Date(app.createdAt).toLocaleDateString('en-IN'),
+          pay: app.pay || posting.pay,
+          icon: app.icon || '👤',
+          opportunityId: id,
+          opportunityTitle: posting.title,
+        }
+      }),
       total: applications.length,
     })
   } catch (error) {
