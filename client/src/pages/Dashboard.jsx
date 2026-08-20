@@ -18,7 +18,7 @@ export default function Dashboard() {
 
   const user = JSON.parse(localStorage.getItem('sh_user') || '{}')
   const isJobProvider = user.role === 'job_provider' || user.role === 'customer'
-  const userName = user.name || (isJobProvider ? 'Anand Kumar' : 'Sunita Ji')
+  const userName = user.name || (isJobProvider ? 'Anand Kumar' : 'User')
 
   useEffect(() => {
     const fetchData = async (isSilent = false) => {

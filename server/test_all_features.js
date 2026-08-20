@@ -25,7 +25,7 @@ async function runTests() {
     console.log('🔹 Test 2: POST /api/auth/register')
     const testPhone = `9${Math.floor(100000009 + Math.random() * 800000000)}`
     const res = await axios.post(`${API_BASE}/auth/register`, {
-      name: 'Sunita Devi',
+      name: 'Priya Devi',
       phone: testPhone,
       password: 'password123',
       role: 'provider',
@@ -68,7 +68,7 @@ async function runTests() {
       {
         role: 'provider',
         providerType: 'senior_citizen',
-        name: 'Sunita Devi',
+        name: 'Priya Devi',
         age: 62,
         location: 'Jaipur, Rajasthan',
         languages: ['Hindi', 'English'],

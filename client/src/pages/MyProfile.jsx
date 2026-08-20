@@ -120,10 +120,10 @@ export default function MyProfile() {
   }
 
   const displayUser = user || {
-    name: 'Sunita Sharma',
-    location: 'Jaipur, Rajasthan',
-    bio: 'Experienced home cook and embroidery teacher with 30+ years of experience.',
-    skills: ['Cooking', 'Embroidery', 'Tutoring'],
+    name: 'User',
+    location: 'Location not set',
+    bio: 'Biography details have not been set yet.',
+    skills: [],
   }
 
   const userSkills = Array.isArray(displayUser.skills) && displayUser.skills.length > 0

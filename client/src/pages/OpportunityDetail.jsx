@@ -78,7 +78,7 @@ export default function OpportunityDetail() {
           itemType: 'opportunity',
           itemId: id,
           providerName: opp.clientName || 'Lakshmi Ammal',
-          customerName: user.name || 'Sunita Ji (Applicant)',
+          customerName: user.name || 'User (Applicant)',
           date: bookingDate,
           time: bookingTime,
           pay: opp.pay,

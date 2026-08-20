@@ -22,7 +22,7 @@ export let mockNotifications = [
     id: 'n2',
     user: 'u_provider',
     title: 'New Booking Request',
-    message: 'Sunita Ji sent a request for Custom Saree Blouse Stitching.',
+    message: 'A client sent a request for Custom Saree Blouse Stitching.',
     type: 'booking',
     read: false,
     createdAt: new Date().toISOString(),

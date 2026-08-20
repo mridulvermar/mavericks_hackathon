@@ -10,7 +10,7 @@ export let mockReports = [
   {
     _id: 'rep_1',
     id: 'rep_1',
-    reporterName: 'Sunita Devi',
+    reporterName: 'Service Provider',
     reportedUserName: 'Unverified Employer',
     reason: 'Suspicious Payment Request',
     message: 'Client asked for off-platform payment transfer before job start.',

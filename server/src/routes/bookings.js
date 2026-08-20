@@ -144,7 +144,7 @@ router.post('/', optionalAuth, async (req, res) => {
     }
 
     const numAmount = parseAmount(pay || '₹500')
-    const applicantName = req.user?.name || customerName || 'Sunita Ji (Applicant)'
+    const applicantName = req.user?.name || customerName || 'User (Applicant)'
     const applicantId = req.user?.id || 'u_customer'
 
     const bookingData = {
