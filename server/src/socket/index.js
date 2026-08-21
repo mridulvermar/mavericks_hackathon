@@ -46,19 +46,46 @@ export const setupSocketIO = (io) => {
 
       if (!messageText.trim()) return
 
+      // Deduplication check: if message with clientMsgId already exists, don't duplicate
+      if (clientMsgId) {
+        if (mongoose.connection.readyState === 1) {
+          try {
+            const existing = await Message.findOne({ clientMsgId }).lean()
+            if (existing) {
+              const existingPayload = {
+                ...existing,
+                _id: String(existing._id),
+                id: String(existing._id),
+              }
+              io.to(`chat:${targetRoom}`).emit('chat:message', existingPayload)
+              return
+            }
+          } catch (e) {
+            console.error('Error checking existing message:', e)
+          }
+        }
+        const inMemExisting = inMemoryMessages.find((m) => m.clientMsgId === clientMsgId)
+        if (inMemExisting) {
+          io.to(`chat:${targetRoom}`).emit('chat:message', inMemExisting)
+          return
+        }
+      }
+
       // Check if recipient is active in the same chat room
       const roomSockets = io.sockets.adapter.rooms.get(`chat:${targetRoom}`)
       const roomSize = roomSockets ? roomSockets.size : 0
       const computedStatus = roomSize > 1 ? 'read' : 'delivered'
+      const nowIso = new Date().toISOString()
+      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
       const msgData = {
         _id: clientMsgId || String(Date.now()),
         id: clientMsgId || String(Date.now()),
         clientMsgId: clientMsgId || String(Date.now()),
         conversationId: targetRoom,
-        text: messageText,
+        text: messageText.trim(),
         senderId: senderId || 'u_user',
-        sender: 'other', // Will be determined on client by comparing senderId
+        sender: 'other', // Sender determination happens on client relative to currentUserId
         senderName: senderName || 'User',
         recipientId: recipientId || '',
         recipientName: recipientName || '',
@@ -66,15 +93,16 @@ export const setupSocketIO = (io) => {
         opportunityId: opportunityId || null,
         bookingId: bookingId || null,
         status: computedStatus,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        createdAt: new Date().toISOString(),
+        time: nowTime,
+        timestamp: nowTime,
+        createdAt: nowIso,
       }
 
       // Persist in MongoDB if active
       if (mongoose.connection.readyState === 1) {
         try {
           const created = await Message.create({
+            clientMsgId: msgData.clientMsgId,
             conversationId: targetRoom,
             senderId: msgData.senderId,
             senderName: msgData.senderName,
@@ -90,6 +118,7 @@ export const setupSocketIO = (io) => {
           if (created) {
             msgData._id = String(created._id)
             msgData.id = String(created._id)
+            msgData.createdAt = created.createdAt ? created.createdAt.toISOString() : nowIso
           }
         } catch (err) {
           console.error('Error saving socket message to DB:', err)
@@ -102,19 +131,19 @@ export const setupSocketIO = (io) => {
           title: `New Message from ${msgData.senderName}`,
           message: msgData.text,
           type: 'chat',
-          link: '/chat'
-        }).catch(err => console.error('Error sending message notification:', err))
+          link: '/chat',
+        }).catch((err) => console.error('Error sending message notification:', err))
       }
 
       inMemoryMessages.push(msgData)
 
-      // Broadcast message to everyone in the room (client will match by clientMsgId)
+      // Broadcast message to everyone in the chat room
       io.to(`chat:${targetRoom}`).emit('chat:message', msgData)
 
-      // Also directly emit chat:message to recipient's personal user room so their conversation list & active chat update in real time
-      if (recipientId) {
-        io.to(`user:${recipientId}`).emit('chat:message', msgData)
-        io.to(`user:${recipientId}`).emit('chat:notification', {
+      // Also directly emit chat:message to recipient's personal user room so their conversation list & notifications update in real time
+      if (msgData.recipientId) {
+        io.to(`user:${msgData.recipientId}`).emit('chat:message', msgData)
+        io.to(`user:${msgData.recipientId}`).emit('chat:notification', {
           conversationId: targetRoom,
           senderName: msgData.senderName,
           text: msgData.text,
@@ -122,9 +151,9 @@ export const setupSocketIO = (io) => {
         })
       }
 
-      // Also notify sender's personal room for other tabs
-      if (senderId) {
-        io.to(`user:${senderId}`).emit('chat:message', msgData)
+      // Also notify sender's personal room for multi-tab sync
+      if (msgData.senderId) {
+        io.to(`user:${msgData.senderId}`).emit('chat:message', msgData)
       }
     })
 

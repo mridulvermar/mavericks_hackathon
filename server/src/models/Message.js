@@ -1,6 +1,10 @@
 import mongoose from 'mongoose'
 
 const messageSchema = new mongoose.Schema({
+  clientMsgId: {
+    type: String,
+    index: true,
+  },
   conversationId: {
     type: String,
     required: [true, 'Conversation ID is required'],
@@ -41,11 +45,10 @@ const messageSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['sent', 'delivered', 'read'],
-    default: 'sent',
+    default: 'delivered',
   },
   timestamp: {
     type: String,
-    default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   },
 }, { timestamps: true })
 

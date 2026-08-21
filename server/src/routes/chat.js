@@ -95,7 +95,9 @@ function buildConversationsList(messages, currentUserId, currentUserName) {
       recipientId: otherId || latestMsg.recipientId || '',
       recipientName: otherName,
       lastMsg: latestMsg.text,
-      time: latestMsg.timestamp || latestMsg.time || new Date(latestMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: latestMsg.time || latestMsg.timestamp || new Date(latestMsg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: latestMsg.timestamp || latestMsg.time,
+      createdAt: latestMsg.createdAt || new Date(mTime).toISOString(),
       latestTime: mTime,
       unread: unreadCount,
       avatar: latestMsg.opportunityTitle ? '💼' : '👤',
@@ -162,7 +164,7 @@ router.get('/conversations/:id/messages', optionalAuth, async (req, res) => {
     const unique = []
     for (const m of messages) {
       const idKey = String(m._id || m.id || m.clientMsgId || '')
-      const contentKey = `${m.conversationId}_${m.senderId || m.senderName}_${m.text}_${m.timestamp || m.time}`
+      const contentKey = `${m.conversationId}_${m.senderId || m.senderName}_${m.text}_${m.createdAt || m.timestamp || m.time}`
       if (!seen.has(idKey) && !seen.has(contentKey)) {
         if (idKey) seen.add(idKey)
         seen.add(contentKey)
@@ -181,7 +183,7 @@ router.get('/conversations/:id/messages', optionalAuth, async (req, res) => {
   }
 })
 
-// ── POST /api/chat/messages (HTTP fallback send) ────────────────────
+// ── POST /api/chat/messages (Guaranteed Persist & Broadcast) ────────
 router.post('/messages', optionalAuth, async (req, res) => {
   try {
     const {
@@ -197,33 +199,60 @@ router.post('/messages', optionalAuth, async (req, res) => {
       clientMsgId,
     } = req.body
 
-    if (!text || !text.trim()) {
+    const rawText = text || req.body.message?.text || ''
+    if (!rawText || !rawText.trim()) {
       return res.status(400).json({ success: false, message: 'Message text is required.' })
     }
 
-    const roomId = conversationId || 'c_default'
+    const roomId = conversationId || req.body.roomId || 'c_default'
+
+    // Deduplication check: return existing message if already saved via socket or previous call
+    if (clientMsgId) {
+      if (mongoose.connection.readyState === 1) {
+        const existing = await Message.findOne({ clientMsgId }).lean()
+        if (existing) {
+          return res.status(200).json({
+            success: true,
+            data: {
+              ...existing,
+              _id: String(existing._id),
+              id: String(existing._id),
+            },
+          })
+        }
+      }
+      const inMemExisting = inMemoryMessages.find((m) => m.clientMsgId === clientMsgId)
+      if (inMemExisting) {
+        return res.status(200).json({ success: true, data: inMemExisting })
+      }
+    }
+
+    const nowIso = new Date().toISOString()
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
     const newMsg = {
       _id: clientMsgId || String(Date.now()),
       id: clientMsgId || String(Date.now()),
       clientMsgId: clientMsgId || String(Date.now()),
       conversationId: roomId,
-      text: text.trim(),
-      sender: 'me',
-      senderId: senderId || req.user?.id || 'me',
+      text: rawText.trim(),
+      sender: 'other', // Client resolves 'me' vs 'other' dynamically
+      senderId: senderId || req.user?.id || 'u_user',
       senderName: senderName || req.user?.name || 'User',
       recipientId: recipientId || '',
       recipientName: recipientName || '',
       opportunityTitle: opportunityTitle || null,
       opportunityId: opportunityId || null,
       bookingId: bookingId || null,
-      status: 'sent',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      createdAt: new Date().toISOString(),
+      status: 'delivered',
+      time: nowTime,
+      timestamp: nowTime,
+      createdAt: nowIso,
     }
 
     if (mongoose.connection.readyState === 1) {
       const created = await Message.create({
+        clientMsgId: newMsg.clientMsgId,
         conversationId: roomId,
         senderId: newMsg.senderId,
         senderName: newMsg.senderName,
@@ -234,11 +263,12 @@ router.post('/messages', optionalAuth, async (req, res) => {
         bookingId: newMsg.bookingId,
         text: newMsg.text,
         status: newMsg.status,
-        timestamp: newMsg.time,
+        timestamp: newMsg.timestamp,
       })
       if (created) {
         newMsg._id = String(created._id)
         newMsg.id = String(created._id)
+        newMsg.createdAt = created.createdAt ? created.createdAt.toISOString() : nowIso
       }
     }
 
@@ -248,8 +278,8 @@ router.post('/messages', optionalAuth, async (req, res) => {
         title: `New Message from ${newMsg.senderName}`,
         message: newMsg.text,
         type: 'chat',
-        link: '/chat'
-      }).catch(err => console.error('Error sending message notification:', err))
+        link: '/chat',
+      }).catch((err) => console.error('Error sending message notification:', err))
     }
 
     inMemoryMessages.push(newMsg)
@@ -260,6 +290,15 @@ router.post('/messages', optionalAuth, async (req, res) => {
       io.to(`chat:${roomId}`).emit('chat:message', newMsg)
       if (newMsg.recipientId) {
         io.to(`user:${newMsg.recipientId}`).emit('chat:message', newMsg)
+        io.to(`user:${newMsg.recipientId}`).emit('chat:notification', {
+          conversationId: roomId,
+          senderName: newMsg.senderName,
+          text: newMsg.text,
+          opportunityTitle: newMsg.opportunityTitle,
+        })
+      }
+      if (newMsg.senderId) {
+        io.to(`user:${newMsg.senderId}`).emit('chat:message', newMsg)
       }
     }
 
